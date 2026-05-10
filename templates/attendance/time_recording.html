@@ -1,0 +1,410 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Time Recording — PayrollPro{% endblock %}
+
+{% block page_header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h1 class="h3 mb-0 text-gray-800">Time Recording</h1>
+        <small class="text-muted">{{ today|date:"l, F j, Y" }}</small>
+    </div>
+    <div>
+        {% if cycle %}
+        <small class="text-muted mr-3">
+            <i class="fas fa-sync-alt mr-1"></i>
+            Cycle: {{ cycle.schedule_start|date:"M d" }} – {{ cycle.schedule_end|date:"M d, Y" }}
+        </small>
+        {% endif %}
+        <button type="button" class="btn btn-sm btn-secondary shadow-sm"
+                data-toggle="modal" data-target="#adhocShiftModal">
+            <i class="fas fa-plus-circle fa-sm mr-1"></i> Add Unscheduled Shift
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+
+{% if not cycle %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle mr-2"></i>
+    There is no open payroll cycle. Time recording is unavailable until a cycle is opened.
+</div>
+
+{% elif not rows %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle mr-2"></i>
+    No shifts are scheduled for today. Use <strong>Add Unscheduled Shift</strong> to add an ad-hoc shift.
+</div>
+
+{% else %}
+
+<!-- Legend -->
+<div class="d-flex align-items-center mb-3 flex-wrap" style="gap:.5rem;">
+    <small class="text-muted mr-2">Status:</small>
+    <span class="badge badge-secondary px-2 py-1">Not Started</span>
+    <span class="badge badge-primary px-2 py-1">On Shift</span>
+    <span class="badge badge-warning text-dark px-2 py-1">On Lunch</span>
+    <span class="badge badge-info px-2 py-1">Returned</span>
+    <span class="badge badge-success px-2 py-1">Completed</span>
+    <span class="badge badge-light border text-dark px-2 py-1 ml-2"><i class="fas fa-bolt fa-xs mr-1 text-warning"></i>Ad-hoc</span>
+</div>
+
+<!-- Board -->
+<div class="card shadow mb-4">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+        <table class="table table-hover mb-0" id="timeBoard">
+            <thead class="thead-light">
+                <tr>
+                    <th style="min-width:180px;">Employee</th>
+                    <th style="min-width:90px;">Scheduled</th>
+                    <th class="text-center" style="min-width:100px;">Status</th>
+                    <th class="text-center" style="min-width:120px;">Clock In</th>
+                    <th class="text-center" style="min-width:140px;">Lunch</th>
+                    <th class="text-center" style="min-width:120px;">Clock Out</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for row in rows %}
+            <tr id="row-{{ row.shift.pk }}"
+                data-shift-id="{{ row.shift.pk }}"
+                data-include-lunch="{{ row.shift.include_lunch|yesno:'true,false' }}"
+                data-state="{{ row.state }}"
+                data-clock-in="{% if row.actual and row.actual.clock_in %}{{ row.actual.clock_in|time:'H:i' }}{% endif %}"
+                data-lunch-start="{% if row.actual and row.actual.lunch_start %}{{ row.actual.lunch_start|time:'H:i' }}{% endif %}"
+                data-lunch-end="{% if row.actual and row.actual.lunch_end %}{{ row.actual.lunch_end|time:'H:i' }}{% endif %}"
+                data-clock-out="{% if row.actual and row.actual.clock_out %}{{ row.actual.clock_out|time:'H:i' }}{% endif %}">
+
+                <!-- Employee -->
+                <td class="align-middle">
+                    <span class="font-weight-bold">{{ row.shift.employee.full_name }}</span>
+                    <br>
+                    <small class="text-muted">{{ row.shift.employee.group.name }}</small>
+                    {% if row.shift.is_adhoc %}
+                    <span class="badge badge-light border text-dark ml-1">
+                        <i class="fas fa-bolt fa-xs text-warning"></i> Ad-hoc
+                    </span>
+                    {% endif %}
+                </td>
+
+                <!-- Scheduled window -->
+                <td class="align-middle text-nowrap">
+                    {{ row.shift.start_time|time:"H:i" }}<br>
+                    <small class="text-muted">{{ row.shift.end_time|time:"H:i" }}</small>
+                    {% if row.shift.include_lunch %}
+                    <i class="fas fa-utensils fa-xs text-muted ml-1" title="Includes lunch"></i>
+                    {% endif %}
+                </td>
+
+                <!-- Status badge (updated by JS) -->
+                <td class="text-center align-middle" data-cell="status">
+                    {% if row.state == "not_started" %}
+                        <span class="badge badge-secondary px-2 py-1">Not Started</span>
+                    {% elif row.state == "clocked_in" %}
+                        <span class="badge badge-primary px-2 py-1">On Shift</span>
+                    {% elif row.state == "on_lunch" %}
+                        <span class="badge badge-warning text-dark px-2 py-1">On Lunch</span>
+                    {% elif row.state == "post_lunch" %}
+                        <span class="badge badge-info px-2 py-1">Returned</span>
+                    {% elif row.state == "completed" %}
+                        <span class="badge badge-success px-2 py-1">Completed</span>
+                    {% endif %}
+                </td>
+
+                <!-- Clock In -->
+                <td class="text-center align-middle" data-cell="clock_in">
+                    {% if row.actual and row.actual.clock_in %}
+                        <span class="font-weight-bold text-success">
+                            <i class="fas fa-sign-in-alt mr-1"></i>{{ row.actual.clock_in|time:"H:i" }}
+                        </span>
+                    {% elif row.state == "not_started" %}
+                        <button class="btn btn-primary btn-sm clock-btn px-3"
+                                data-action="clock_in" data-shift-id="{{ row.shift.pk }}">
+                            <i class="fas fa-sign-in-alt mr-1"></i>Clock In
+                        </button>
+                    {% endif %}
+                </td>
+
+                <!-- Lunch (Start → End merged into one column) -->
+                <td class="text-center align-middle" data-cell="lunch">
+                    {% if not row.shift.include_lunch %}
+                        <span class="text-muted">—</span>
+                    {% elif row.actual and row.actual.lunch_start and row.actual.lunch_end %}
+                        <span class="text-warning font-weight-bold">
+                            <i class="fas fa-utensils mr-1"></i>{{ row.actual.lunch_start|time:"H:i" }}
+                        </span>
+                        <span class="text-muted mx-1">–</span>
+                        <span class="text-info font-weight-bold">{{ row.actual.lunch_end|time:"H:i" }}</span>
+                    {% elif row.actual and row.actual.lunch_start %}
+                        <span class="text-warning font-weight-bold">
+                            <i class="fas fa-utensils mr-1"></i>{{ row.actual.lunch_start|time:"H:i" }}
+                        </span>
+                        <br>
+                        <button class="btn btn-info btn-sm clock-btn mt-1 px-3"
+                                data-action="lunch_end" data-shift-id="{{ row.shift.pk }}">
+                            <i class="fas fa-undo mr-1"></i>End Lunch
+                        </button>
+                    {% elif row.state == "clocked_in" %}
+                        <button class="btn btn-warning btn-sm clock-btn px-3"
+                                data-action="lunch_start" data-shift-id="{{ row.shift.pk }}">
+                            <i class="fas fa-utensils mr-1"></i>Start Lunch
+                        </button>
+                    {% else %}
+                        <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+
+                <!-- Clock Out -->
+                <td class="text-center align-middle" data-cell="clock_out">
+                    {% if row.actual and row.actual.clock_out %}
+                        <span class="font-weight-bold text-danger">
+                            <i class="fas fa-sign-out-alt mr-1"></i>{{ row.actual.clock_out|time:"H:i" }}
+                        </span>
+                    {% elif row.state == "clocked_in" or row.state == "post_lunch" %}
+                        <button class="btn btn-danger btn-sm clock-btn px-3"
+                                data-action="clock_out" data-shift-id="{{ row.shift.pk }}">
+                            <i class="fas fa-sign-out-alt mr-1"></i>Clock Out
+                        </button>
+                    {% elif row.state == "on_lunch" %}
+                        <span class="text-muted small">(on lunch)</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div><!-- table-responsive -->
+    </div>
+</div>
+
+{% endif %}{# end rows #}
+
+<!-- Ad-hoc Shift Modal (same form as dashboard, posts to scheduling:adhoc_shift_create) -->
+<div class="modal fade" id="adhocShiftModal" tabindex="-1" role="dialog"
+     aria-labelledby="adhocShiftModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="adhocShiftModalLabel">
+                    <i class="fas fa-plus-circle mr-2 text-secondary"></i>Add Unscheduled Shift
+                </h5>
+                <button class="close" type="button" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <form id="adhocShiftForm" method="post" action="{% url 'scheduling:adhoc_shift_create' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">
+                        Adds a same-day unscheduled shift for an employee not on today's schedule.
+                        The shift will appear on this board immediately after saving.
+                    </p>
+                    <div id="adhocFormErrors" class="alert alert-danger d-none"></div>
+                    <div class="form-group">
+                        <label for="{{ adhoc_form.employee.id_for_label }}">Employee</label>
+                        {{ adhoc_form.employee }}
+                    </div>
+                    <div class="form-group">
+                        <label>Date</label>
+                        <div class="form-control-plaintext font-weight-bold">
+                            <i class="fas fa-calendar-day mr-1 text-muted"></i>
+                            Today &mdash; {{ today|date:"l, M d, Y" }}
+                        </div>
+                        <small class="form-text text-muted">Ad-hoc shifts can only be added for today.</small>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="form-group">
+                                <label for="{{ adhoc_form.start_time.id_for_label }}">Start Time</label>
+                                {{ adhoc_form.start_time }}
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="form-group">
+                                <label for="{{ adhoc_form.end_time.id_for_label }}">End Time</label>
+                                {{ adhoc_form.end_time }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="custom-control custom-checkbox">
+                        {{ adhoc_form.include_lunch }}
+                        <label class="custom-control-label" for="{{ adhoc_form.include_lunch.id_for_label }}">
+                            Include Lunch Break
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="adhocSubmitBtn">
+                        <i class="fas fa-plus mr-1"></i> Add Shift
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const CLOCK_URL = "{% url 'attendance:clock_action' %}";
+    const CSRF      = "{{ csrf_token }}";
+
+    // ── Status badge HTML ─────────────────────────────────────────────────────
+    const STATUS = {
+        not_started: '<span class="badge badge-secondary px-2 py-1">Not Started</span>',
+        clocked_in:  '<span class="badge badge-primary px-2 py-1">On Shift</span>',
+        on_lunch:    '<span class="badge badge-warning text-dark px-2 py-1">On Lunch</span>',
+        post_lunch:  '<span class="badge badge-info px-2 py-1">Returned</span>',
+        completed:   '<span class="badge badge-success px-2 py-1">Completed</span>',
+    };
+
+    // ── Small HTML builders ───────────────────────────────────────────────────
+    function btn(action, shiftId, cls, icon, label) {
+        return `<button class="btn btn-${cls} btn-sm clock-btn px-3"
+                        data-action="${action}" data-shift-id="${shiftId}">
+                    <i class="fas fa-${icon} mr-1"></i>${label}
+                </button>`;
+    }
+    function stamp(cls, icon, time) {
+        return `<span class="font-weight-bold text-${cls}"><i class="fas fa-${icon} mr-1"></i>${time}</span>`;
+    }
+
+    // ── Rebuild all action cells for a row after a state change ───────────────
+    function refreshRow(row, state, action, time) {
+        const sid          = row.dataset.shiftId;
+        const includeLunch = row.dataset.includeLunch === 'true';
+
+        // Update stored time for the action that just fired
+        row.dataset[camelize(action)] = time;
+
+        const ci = row.dataset.clockIn;
+        const ls = row.dataset.lunchStart;
+        const le = row.dataset.lunchEnd;
+        const co = row.dataset.clockOut;
+
+        row.dataset.state = state;
+
+        // Status
+        row.querySelector('[data-cell="status"]').innerHTML = STATUS[state] || '';
+
+        // Clock In
+        row.querySelector('[data-cell="clock_in"]').innerHTML =
+            ci ? stamp('success', 'sign-in-alt', ci)
+               : (state === 'not_started' ? btn('clock_in', sid, 'primary', 'sign-in-alt', 'Clock In') : '');
+
+        // Lunch (single merged cell)
+        const lunchCell = row.querySelector('[data-cell="lunch"]');
+        if (!includeLunch) {
+            lunchCell.innerHTML = '<span class="text-muted">—</span>';
+        } else if (ls && le) {
+            lunchCell.innerHTML =
+                stamp('warning', 'utensils', ls) +
+                '<span class="text-muted mx-1">–</span>' +
+                `<span class="font-weight-bold text-info">${le}</span>`;
+        } else if (ls) {
+            lunchCell.innerHTML =
+                stamp('warning', 'utensils', ls) + '<br>' +
+                btn('lunch_end', sid, 'info', 'undo', 'End Lunch');
+        } else if (state === 'clocked_in') {
+            lunchCell.innerHTML = btn('lunch_start', sid, 'warning', 'utensils', 'Start Lunch');
+        } else {
+            lunchCell.innerHTML = '<span class="text-muted">—</span>';
+        }
+
+        // Clock Out
+        const coCell = row.querySelector('[data-cell="clock_out"]');
+        if (co) {
+            coCell.innerHTML = stamp('danger', 'sign-out-alt', co);
+        } else if (state === 'clocked_in' || state === 'post_lunch') {
+            coCell.innerHTML = btn('clock_out', sid, 'danger', 'sign-out-alt', 'Clock Out');
+        } else if (state === 'on_lunch') {
+            coCell.innerHTML = '<span class="text-muted small">(on lunch)</span>';
+        } else {
+            coCell.innerHTML = '';
+        }
+    }
+
+    // camelCase for dataset: "clock_in" → "clockIn"
+    function camelize(s) {
+        return s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    }
+
+    // ── Clock button click handler ─────────────────────────────────────────────
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest('.clock-btn');
+        if (!btn) return;
+
+        btn.disabled = true;
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        const body = new FormData();
+        body.append('scheduled_shift_id', btn.dataset.shiftId);
+        body.append('action', btn.dataset.action);
+        body.append('csrfmiddlewaretoken', CSRF);
+
+        fetch(CLOCK_URL, { method: 'POST', body })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok) {
+                    const row = document.getElementById('row-' + data.shift_id);
+                    if (row) refreshRow(row, data.state, data.action, data.time);
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                    btn.disabled = false;
+                    btn.innerHTML = orig;
+                }
+            })
+            .catch(() => {
+                alert('Network error — please try again.');
+                btn.disabled = false;
+                btn.innerHTML = orig;
+            });
+    });
+
+    // ── Ad-hoc shift form (AJAX, reload on success) ───────────────────────────
+    const adhocForm = document.getElementById('adhocShiftForm');
+    if (adhocForm) {
+        const errBox    = document.getElementById('adhocFormErrors');
+        const submitBtn = document.getElementById('adhocSubmitBtn');
+
+        adhocForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            errBox.classList.add('d-none');
+            errBox.innerHTML = '';
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Saving…';
+
+            fetch(adhocForm.action, {
+                method: 'POST',
+                body: new FormData(adhocForm),
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            })
+            .then(r => r.json())
+            .then(json => {
+                if (json.ok) {
+                    window.location.reload();
+                } else {
+                    const msgs = [];
+                    if (json.error)  msgs.push(json.error);
+                    if (json.errors) Object.values(json.errors).forEach(e => msgs.push(...e));
+                    errBox.innerHTML = msgs.join('<br>');
+                    errBox.classList.remove('d-none');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-plus mr-1"></i> Add Shift';
+                }
+            })
+            .catch(() => {
+                errBox.innerHTML = 'An unexpected error occurred. Please try again.';
+                errBox.classList.remove('d-none');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-plus mr-1"></i> Add Shift';
+            });
+        });
+    }
+})();
+</script>
+{% endblock %}

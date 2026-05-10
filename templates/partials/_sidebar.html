@@ -60,7 +60,7 @@
 
     <!-- Time Recording -->
     <li class="nav-item {% if request.resolver_match.app_name == 'attendance' %}active{% endif %}">
-        <a class="nav-link" href="#">
+        <a class="nav-link" href="{% url 'attendance:time_recording' %}">
             <i class="fas fa-fw fa-clock"></i>
             <span>Time Recording</span>
         </a>
