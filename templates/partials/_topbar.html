@@ -9,9 +9,9 @@
     <!-- Date & Live Clock -->
     <div class="d-none d-sm-flex align-items-center">
         <i class="fas fa-calendar-day fa-fw text-gray-400 mr-2"></i>
-        <span class="text-gray-600 small mr-3" id="topbar-date"></span>
+        <span class="text-gray-700 font-weight-bold mr-3" style="font-size:0.95rem;" id="topbar-date"></span>
         <i class="fas fa-clock fa-fw text-gray-400 mr-2"></i>
-        <span class="text-gray-600 small font-weight-bold" id="topbar-clock"></span>
+        <span class="text-gray-700 font-weight-bold" style="font-size:0.95rem;" id="topbar-clock"></span>
     </div>
 
     <!-- Right-side nav -->
@@ -34,7 +34,7 @@
                     <i class="fas fa-user fa-sm fa-fw mr-2 text-gray-400"></i>
                     Profile
                 </a>
-                <a class="dropdown-item" href="#">
+                <a class="dropdown-item" href="{% url 'core:settings' %}">
                     <i class="fas fa-cogs fa-sm fa-fw mr-2 text-gray-400"></i>
                     Settings
                 </a>
@@ -67,17 +67,16 @@
 
         const h    = now.getHours();
         const m    = pad(now.getMinutes());
-        const s    = pad(now.getSeconds());
         const ampm = h >= 12 ? 'PM' : 'AM';
         const h12  = h % 12 || 12;
 
         const dateEl  = document.getElementById('topbar-date');
         const clockEl = document.getElementById('topbar-clock');
         if (dateEl)  dateEl.textContent  = `${day}, ${mon} ${date}, ${yr}`;
-        if (clockEl) clockEl.textContent = `${h12}:${m}:${s} ${ampm}`;
+        if (clockEl) clockEl.textContent = `${h12}:${m} ${ampm}`;
     }
 
     tick();
-    setInterval(tick, 1000);
+    setInterval(tick, 1000); // 1-second tick keeps minute accurate the instant it changes
 })();
 </script>

@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Settings – PayrollPro{% endblock %}
+
+{% block page_header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">System Settings</h1>
+</div>
+{% endblock %}
+
+{% block content %}
+<form method="post" novalidate>
+    {% csrf_token %}
+    <div class="row">
+
+        <!-- Left column -->
+        <div class="col-lg-6">
+
+            <!-- Pay Rules -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-dollar-sign mr-2"></i>Pay Rules
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="{{ form.overtime_rate_multiplier.id_for_label }}">
+                            Overtime Rate Multiplier
+                            <small class="text-muted">(e.g. 1.5 = time-and-a-half)</small>
+                        </label>
+                        {{ form.overtime_rate_multiplier }}
+                        {% if form.overtime_rate_multiplier.errors %}
+                            <div class="invalid-feedback d-block">{{ form.overtime_rate_multiplier.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.holiday_rate_multiplier.id_for_label }}">
+                            Holiday Rate Multiplier
+                            <small class="text-muted">(e.g. 2.0 = double time)</small>
+                        </label>
+                        {{ form.holiday_rate_multiplier }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.overtime_threshold_hours.id_for_label }}">
+                            Overtime Threshold (hours/week)
+                        </label>
+                        {{ form.overtime_threshold_hours }}
+                    </div>
+                    <div class="form-group mb-0">
+                        <label for="{{ form.deduction_percentage.id_for_label }}">
+                            Deduction Percentage
+                            <small class="text-muted">(e.g. 10 = 10% off gross pay)</small>
+                        </label>
+                        {{ form.deduction_percentage }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scheduling Defaults -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-calendar-alt mr-2"></i>Scheduling Defaults
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="{{ form.default_lunch_duration_minutes.id_for_label }}">
+                            Default Lunch Duration (minutes)
+                        </label>
+                        {{ form.default_lunch_duration_minutes }}
+                    </div>
+                    <div class="form-group mb-0">
+                        <label for="{{ form.week_start_day.id_for_label }}">Week Starts On</label>
+                        {{ form.week_start_day }}
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right column -->
+        <div class="col-lg-6">
+
+            <!-- Payroll Close Day -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-file-invoice-dollar mr-2"></i>Payroll Close Day
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-3">
+                        The "Close Payroll" button will appear on the dashboard only on this day.
+                    </p>
+                    <div class="form-group">
+                        <label for="{{ form.payroll_close_weekday.id_for_label }}">Day of the Week</label>
+                        {{ form.payroll_close_weekday }}
+                    </div>
+                    <div class="form-group mb-0">
+                        <label for="{{ form.payroll_close_week.id_for_label }}">Which Week of the Cycle</label>
+                        {{ form.payroll_close_week }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cycle Anchors -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-anchor mr-2"></i>Cycle Anchors
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-3">
+                        Set once when the system goes live. Every subsequent bi-weekly
+                        schedule cycle is calculated as a 14-day multiple from the start date.
+                    </p>
+                    <div class="form-group">
+                        <label for="{{ form.schedule_cycle_start.id_for_label }}">
+                            First Schedule Cycle Start Date
+                        </label>
+                        {{ form.schedule_cycle_start }}
+                        {% if form.schedule_cycle_start.errors %}
+                            <div class="invalid-feedback d-block">{{ form.schedule_cycle_start.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group mb-0">
+                        <label for="{{ form.payroll_cycle_offset_days.id_for_label }}">
+                            Payroll Cycle Offset (days before schedule start)
+                            <small class="text-muted">Default 3 = previous Thursday</small>
+                        </label>
+                        {{ form.payroll_cycle_offset_days }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary btn-lg shadow-sm">
+                    <i class="fas fa-save mr-2"></i>Save Settings
+                </button>
+            </div>
+
+        </div>
+    </div>
+</form>
+{% endblock %}

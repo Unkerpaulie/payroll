@@ -79,8 +79,8 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Hours Worked Today</div>
-                        <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_hours|floatformat:2 }}</div>
-                        <div class="small text-muted mt-1">completed shifts</div>
+                        <div class="h4 mb-0 font-weight-bold text-gray-800" id="kpi-hours">{{ total_hours|floatformat:2 }}</div>
+                        <div class="small text-muted mt-1">all active &amp; completed shifts</div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-hourglass-half fa-2x text-gray-300"></i>
@@ -97,8 +97,8 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Wage Cost Today</div>
-                        <div class="h4 mb-0 font-weight-bold text-gray-800">${{ total_cost|floatformat:2 }}</div>
-                        <div class="small text-muted mt-1">completed shifts</div>
+                        <div class="h4 mb-0 font-weight-bold text-gray-800">$<span id="kpi-cost">{{ total_cost|floatformat:2 }}</span></div>
+                        <div class="small text-muted mt-1">all active &amp; completed shifts</div>
                     </div>
                     <div class="col-auto">
                         <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
@@ -212,6 +212,34 @@
 
 {% block extra_js %}
 <script>
+// ── Live KPI polling (every 60 s) ─────────────────────────────────────────
+(function () {
+    const KPI_URL = "{% url 'core:kpi' %}";
+
+    function refreshKpis() {
+        fetch(KPI_URL)
+            .then(r => r.json())
+            .then(data => {
+                const hoursEl = document.getElementById('kpi-hours');
+                const costEl  = document.getElementById('kpi-cost');
+                if (hoursEl) hoursEl.textContent = parseFloat(data.total_hours).toFixed(2);
+                if (costEl)  costEl.textContent  = parseFloat(data.total_cost).toFixed(2);
+            })
+            .catch(() => {}); // silent — dashboard still shows last value
+    }
+
+    // Align the first poll to the top of the next minute so it fires in sync
+    // with the topbar clock.
+    const msUntilNextMinute = (60 - new Date().getSeconds()) * 1000;
+    setTimeout(function () {
+        refreshKpis();
+        setInterval(refreshKpis, 60000);
+    }, msUntilNextMinute);
+})();
+</script>
+
+<script>
+// ── Ad-hoc shift modal ────────────────────────────────────────────────────
 (function () {
     const form    = document.getElementById('adhocShiftForm');
     const errBox  = document.getElementById('adhocFormErrors');

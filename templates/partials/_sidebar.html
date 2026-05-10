@@ -86,7 +86,7 @@
 
     <!-- Settings -->
     <li class="nav-item {% if request.resolver_match.app_name == 'core' and request.resolver_match.url_name == 'settings' %}active{% endif %}">
-        <a class="nav-link" href="#">
+        <a class="nav-link" href="{% url 'core:settings' %}">
             <i class="fas fa-fw fa-cogs"></i>
             <span>Settings</span>
         </a>
