@@ -5,76 +5,103 @@
 {% block page_header %}
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
     <h1 class="h3 mb-0 text-gray-800">Dashboard</h1>
+    {% if active_cycle %}
+    <small class="text-muted">
+        Cycle: {{ active_cycle.schedule_start|date:"M d" }} – {{ active_cycle.schedule_end|date:"M d, Y" }}
+    </small>
+    {% endif %}
 </div>
 {% endblock %}
 
 {% block content %}
 
-<!-- Summary Cards Row -->
+<!-- KPI Row -->
 <div class="row">
 
-    <!-- Employees card -->
+    <!-- Employees on Shift -->
     <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-primary shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
+        <div class="card border-left-primary shadow h-100">
+            <div class="card-body py-3">
+                <div class="row no-gutters align-items-center mb-2">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Employees</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">—</div>
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Employees on Shift</div>
+                        <div class="h4 mb-0 font-weight-bold text-gray-800">{{ on_shift|length }}</div>
                     </div>
                     <div class="col-auto">
-                        <i class="fas fa-users fa-2x text-gray-300"></i>
+                        <i class="fas fa-user-check fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+                {% if on_shift %}
+                <hr class="mt-1 mb-2">
+                <ul class="list-unstyled mb-0 small">
+                    {% for emp in on_shift %}
+                    <li class="text-gray-700"><i class="fas fa-circle fa-xs text-success mr-1"></i>{{ emp.full_name }}</li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="small text-muted mb-0 mt-1">No one currently clocked in.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Employees on Lunch -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100">
+            <div class="card-body py-3">
+                <div class="row no-gutters align-items-center mb-2">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Employees on Lunch</div>
+                        <div class="h4 mb-0 font-weight-bold text-gray-800">{{ on_lunch|length }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-utensils fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+                {% if on_lunch %}
+                <hr class="mt-1 mb-2">
+                <ul class="list-unstyled mb-0 small">
+                    {% for emp in on_lunch %}
+                    <li class="text-gray-700"><i class="fas fa-circle fa-xs text-warning mr-1"></i>{{ emp.full_name }}</li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="small text-muted mb-0 mt-1">No one on lunch break.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Total Hours Worked -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100">
+            <div class="card-body py-3">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Hours Worked Today</div>
+                        <div class="h4 mb-0 font-weight-bold text-gray-800">{{ total_hours|floatformat:2 }}</div>
+                        <div class="small text-muted mt-1">completed shifts</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-hourglass-half fa-2x text-gray-300"></i>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Active Cycle card -->
+    <!-- Total Wage Cost -->
     <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-success shadow h-100 py-2">
-            <div class="card-body">
+        <div class="card border-left-success shadow h-100">
+            <div class="card-body py-3">
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Active Cycle</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">—</div>
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Wage Cost Today</div>
+                        <div class="h4 mb-0 font-weight-bold text-gray-800">${{ total_cost|floatformat:2 }}</div>
+                        <div class="small text-muted mt-1">completed shifts</div>
                     </div>
                     <div class="col-auto">
-                        <i class="fas fa-calendar-alt fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Shifts Today card -->
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-info shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Shifts Today</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">—</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-clock fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Payroll Status card -->
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-warning shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Payroll Status</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">—</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-file-invoice-dollar fa-2x text-gray-300"></i>
+                        <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
                     </div>
                 </div>
             </div>
@@ -82,7 +109,7 @@
     </div>
 
 </div>
-<!-- End Summary Cards Row -->
+<!-- End KPI Row -->
 
 <!-- Quick Actions -->
 <div class="row">
@@ -95,18 +122,141 @@
                 <a href="#" class="btn btn-primary mr-2 mb-2">
                     <i class="fas fa-clock mr-1"></i> Time Recording
                 </a>
-                <a href="#" class="btn btn-success mr-2 mb-2">
-                    <i class="fas fa-calendar-plus mr-1"></i> New Payroll Cycle
-                </a>
                 <a href="#" class="btn btn-info mr-2 mb-2">
-                    <i class="fas fa-user-plus mr-1"></i> Add Employee
+                    <i class="fas fa-calendar-alt mr-1"></i> Current Schedule
                 </a>
-                <a href="#" class="btn btn-warning mr-2 mb-2">
+                <button type="button" class="btn btn-secondary mr-2 mb-2"
+                        data-toggle="modal" data-target="#adhocShiftModal">
+                    <i class="fas fa-plus-circle mr-1"></i> Add Unscheduled Shift
+                </button>
+                {% if show_close_payroll %}
+                <a href="#" class="btn btn-danger mr-2 mb-2">
                     <i class="fas fa-file-invoice-dollar mr-1"></i> Close Payroll
                 </a>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
+<!-- Ad-hoc Shift Modal -->
+<div class="modal fade" id="adhocShiftModal" tabindex="-1" role="dialog"
+     aria-labelledby="adhocShiftModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title" id="adhocShiftModalLabel">
+                    <i class="fas fa-plus-circle mr-2 text-secondary"></i>Add Unscheduled Shift
+                </h5>
+                <button class="close" type="button" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <form id="adhocShiftForm" method="post"
+                  action="{% url 'scheduling:adhoc_shift_create' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">
+                        Use this to add a shift that wasn't on the original schedule — for example,
+                        a replacement worker covering an absent employee. The shift will appear
+                        on today's time-recording board immediately.
+                    </p>
+
+                    <div id="adhocFormErrors" class="alert alert-danger d-none"></div>
+
+                    <div class="form-group">
+                        <label for="{{ adhoc_form.employee.id_for_label }}">Employee</label>
+                        {{ adhoc_form.employee }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ adhoc_form.date.id_for_label }}">Date</label>
+                        {{ adhoc_form.date }}
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="form-group">
+                                <label for="{{ adhoc_form.start_time.id_for_label }}">Start Time</label>
+                                {{ adhoc_form.start_time }}
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="form-group">
+                                <label for="{{ adhoc_form.end_time.id_for_label }}">End Time</label>
+                                {{ adhoc_form.end_time }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="custom-control custom-checkbox">
+                        {{ adhoc_form.include_lunch }}
+                        <label class="custom-control-label" for="{{ adhoc_form.include_lunch.id_for_label }}">
+                            Include Lunch Break
+                        </label>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="adhocSubmitBtn">
+                        <i class="fas fa-plus mr-1"></i> Add Shift
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const form    = document.getElementById('adhocShiftForm');
+    const errBox  = document.getElementById('adhocFormErrors');
+    const submitBtn = document.getElementById('adhocSubmitBtn');
+
+    if (!form) return;
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        errBox.classList.add('d-none');
+        errBox.innerHTML = '';
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Saving…';
+
+        const data = new FormData(form);
+
+        fetch(form.action, {
+            method: 'POST',
+            body: data,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        })
+        .then(r => r.json())
+        .then(json => {
+            if (json.ok) {
+                // Reload dashboard so the new shift appears in time-recording.
+                window.location.reload();
+            } else {
+                const msgs = [];
+                if (json.error) msgs.push(json.error);
+                if (json.errors) {
+                    Object.values(json.errors).forEach(errs => msgs.push(...errs));
+                }
+                errBox.innerHTML = msgs.join('<br>');
+                errBox.classList.remove('d-none');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-plus mr-1"></i> Add Shift';
+            }
+        })
+        .catch(() => {
+            errBox.innerHTML = 'An unexpected error occurred. Please try again.';
+            errBox.classList.remove('d-none');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-plus mr-1"></i> Add Shift';
+        });
+    });
+})();
+</script>
 {% endblock %}
