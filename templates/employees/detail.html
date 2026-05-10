@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ employee.full_name }} – PayrollPro{% endblock %}
+
+{% block page_header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h1 class="h3 mb-0 text-gray-800">{{ employee.full_name }}</h1>
+        <small class="text-muted">{{ employee.group.name }}</small>
+    </div>
+    <div>
+        <a href="{% url 'employees:list' %}" class="btn btn-sm btn-secondary mr-1">
+            <i class="fas fa-arrow-left fa-sm"></i> All Employees
+        </a>
+        <a href="{% url 'employees:update' employee.pk %}" class="btn btn-sm btn-warning mr-1">
+            <i class="fas fa-edit fa-sm"></i> Edit
+        </a>
+        <button class="btn btn-sm btn-danger btn-delete-emp"
+                data-name="{{ employee.full_name }}"
+                data-url="{% url 'employees:delete' employee.pk %}">
+            <i class="fas fa-trash fa-sm"></i> Delete
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Info card -->
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 d-flex align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-id-card mr-2"></i>Details</h6>
+                {% if employee.status == 'active' %}
+                    <span class="badge badge-success">Active</span>
+                {% else %}
+                    <span class="badge badge-secondary">Inactive</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5 text-muted">Email</dt>
+                    <dd class="col-sm-7">{{ employee.email|default:"—" }}</dd>
+                    <dt class="col-sm-5 text-muted">Phone</dt>
+                    <dd class="col-sm-7">{{ employee.phone|default:"—" }}</dd>
+                    <dt class="col-sm-5 text-muted">Group</dt>
+                    <dd class="col-sm-7">{{ employee.group.name }}</dd>
+                    <dt class="col-sm-5 text-muted">Pay Rate</dt>
+                    <dd class="col-sm-7">${{ employee.pay_rate }}/hr</dd>
+                    <dt class="col-sm-5 text-muted">Hire Date</dt>
+                    <dd class="col-sm-7">{{ employee.hire_date|default:"—" }}</dd>
+                    {% if employee.notes %}
+                    <dt class="col-sm-5 text-muted">Notes</dt>
+                    <dd class="col-sm-7">{{ employee.notes }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unavailability card -->
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3 d-flex align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-calendar-times mr-2"></i>Unavailability Periods</h6>
+                <button class="btn btn-sm btn-primary" data-toggle="modal" data-target="#addUnavailModal">
+                    <i class="fas fa-plus fa-sm"></i> Add Period
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0" id="unavailTable">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>From</th><th>To</th><th>Reason</th><th class="text-center">Remove</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in employee.unavailabilities.all %}
+                        <tr id="unav-row-{{ u.pk }}">
+                            <td>{{ u.start_date }}</td>
+                            <td>{{ u.end_date }}</td>
+                            <td>{{ u.reason|default:"—" }}</td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-danger btn-del-unav"
+                                        data-id="{{ u.pk }}"
+                                        data-url="{% url 'employees:unavailability_delete' u.pk %}">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr id="empty-row">
+                            <td colspan="4" class="text-center text-muted py-3">No unavailability periods recorded.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Unavailability Modal -->
+<div class="modal fade" id="addUnavailModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-calendar-times mr-2"></i>Add Unavailability</h5>
+                <button class="close text-white" type="button" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="unavail-errors" class="alert alert-danger d-none"></div>
+                <div class="form-group">
+                    <label>From <span class="text-danger">*</span></label>
+                    {{ unavailability_form.start_date }}
+                </div>
+                <div class="form-group">
+                    <label>To <span class="text-danger">*</span></label>
+                    {{ unavailability_form.end_date }}
+                </div>
+                <div class="form-group">
+                    <label>Reason</label>
+                    {{ unavailability_form.reason }}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" id="saveUnavail">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Employee Modal -->
+<div class="modal fade" id="deleteEmpModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-exclamation-triangle mr-2"></i>Delete Employee</h5>
+                <button class="close text-white" type="button" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete <strong>{{ employee.full_name }}</strong>? This action cannot be undone.
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
+                <form method="post" action="{% url 'employees:delete' employee.pk %}">
+                    {% csrf_token %}<button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+document.querySelector('.btn-delete-emp').addEventListener('click', function() {
+    $('#deleteEmpModal').modal('show');
+});
+
+document.getElementById('saveUnavail').addEventListener('click', function () {
+    const errBox = document.getElementById('unavail-errors');
+    errBox.classList.add('d-none');
+    const data = new FormData();
+    data.append('csrfmiddlewaretoken', CSRF);
+    data.append('start_date', document.getElementById('id_start_date').value);
+    data.append('end_date',   document.getElementById('id_end_date').value);
+    data.append('reason',     document.getElementById('id_reason').value);
+
+    fetch("{% url 'employees:unavailability_create' employee.pk %}", { method: 'POST', body: data })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                const emptyRow = document.getElementById('empty-row');
+                if (emptyRow) emptyRow.remove();
+                const deleteUrl = "{% url 'employees:unavailability_delete' 0 %}".replace('/0/', `/${data.id}/`);
+                const row = document.createElement('tr');
+                row.id = `unav-row-${data.id}`;
+                row.innerHTML = `
+                    <td>${data.start_date}</td><td>${data.end_date}</td>
+                    <td>${data.reason || '—'}</td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-danger btn-del-unav"
+                                data-id="${data.id}" data-url="${deleteUrl}">
+                            <i class="fas fa-times"></i></button></td>`;
+                document.querySelector('#unavailTable tbody').appendChild(row);
+                $('#addUnavailModal').modal('hide');
+                ['id_start_date','id_end_date','id_reason'].forEach(id => document.getElementById(id).value = '');
+            } else {
+                errBox.textContent = Object.values(data.errors).flat().join(' ');
+                errBox.classList.remove('d-none');
+            }
+        });
+});
+
+document.querySelector('#unavailTable').addEventListener('click', function (e) {
+    const btn = e.target.closest('.btn-del-unav');
+    if (!btn) return;
+    if (!confirm('Remove this unavailability period?')) return;
+    fetch(btn.dataset.url, { method: 'POST', headers: { 'X-CSRFToken': CSRF } })
+        .then(r => r.json())
+        .then(d => { if (d.ok) document.getElementById(`unav-row-${btn.dataset.id}`).remove(); });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ form_title }} – PayrollPro{% endblock %}
+
+{% block page_header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">{{ form_title }}</h1>
+    <a href="{{ cancel_url }}" class="btn btn-sm btn-secondary shadow-sm">
+        <i class="fas fa-arrow-left fa-sm"></i> Cancel
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<form method="post" novalidate>
+    {% csrf_token %}
+    <div class="row">
+
+        <!-- Left column: Personal info -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-user mr-2"></i>Personal Information</h6>
+                </div>
+                <div class="card-body">
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="{{ form.first_name.id_for_label }}">First Name <span class="text-danger">*</span></label>
+                            {{ form.first_name }}
+                            {% if form.first_name.errors %}
+                                <div class="invalid-feedback d-block">{{ form.first_name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="{{ form.last_name.id_for_label }}">Last Name <span class="text-danger">*</span></label>
+                            {{ form.last_name }}
+                            {% if form.last_name.errors %}
+                                <div class="invalid-feedback d-block">{{ form.last_name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.email.id_for_label }}">Email</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                            <div class="invalid-feedback d-block">{{ form.email.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.phone.id_for_label }}">Phone</label>
+                        {{ form.phone }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.notes.id_for_label }}">Notes</label>
+                        {{ form.notes }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right column: Employment details -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-briefcase mr-2"></i>Employment Details</h6>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="{{ form.group.id_for_label }}">Group <span class="text-danger">*</span></label>
+                        {{ form.group }}
+                        {% if form.group.errors %}
+                            <div class="invalid-feedback d-block">{{ form.group.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="{{ form.pay_rate.id_for_label }}">Pay Rate ($/hr) <span class="text-danger">*</span></label>
+                            {{ form.pay_rate }}
+                            {% if form.pay_rate.errors %}
+                                <div class="invalid-feedback d-block">{{ form.pay_rate.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="{{ form.status.id_for_label }}">Status</label>
+                            {{ form.status }}
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.hire_date.id_for_label }}">Hire Date</label>
+                        {{ form.hire_date }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Non-field errors -->
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="d-flex justify-content-end">
+                <a href="{{ cancel_url }}" class="btn btn-secondary mr-2">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save mr-1"></i> Save Employee
+                </button>
+            </div>
+        </div>
+
+    </div>
+</form>
+{% endblock %}

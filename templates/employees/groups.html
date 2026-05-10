@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Groups – PayrollPro{% endblock %}
+
+{% block page_header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Employee Groups</h1>
+    <div>
+        <a href="{% url 'employees:list' %}" class="btn btn-sm btn-secondary mr-2">
+            <i class="fas fa-arrow-left fa-sm"></i> Back to Employees
+        </a>
+        <button class="btn btn-sm btn-primary shadow-sm" id="btnAddGroup">
+            <i class="fas fa-plus fa-sm text-white-50"></i> Add Group
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">All Groups</h6>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-bordered table-hover mb-0" id="groupsTable">
+            <thead class="thead-light">
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th class="text-center">Employees</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for group in groups %}
+                <tr id="group-row-{{ group.pk }}">
+                    <td class="font-weight-bold">{{ group.name }}</td>
+                    <td>{{ group.description|default:"—" }}</td>
+                    <td class="text-center">
+                        <span class="badge badge-primary badge-pill">{{ group.employees.count }}</span>
+                    </td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-warning btn-edit-group"
+                                data-id="{{ group.pk }}"
+                                data-name="{{ group.name }}"
+                                data-description="{{ group.description }}"
+                                data-url="{% url 'employees:group_update' group.pk %}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger btn-del-group"
+                                data-id="{{ group.pk }}"
+                                data-name="{{ group.name }}"
+                                data-url="{% url 'employees:group_delete' group.pk %}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr id="empty-row">
+                    <td colspan="4" class="text-center text-muted py-4">No groups yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add / Edit Group Modal -->
+<div class="modal fade" id="groupModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="groupModalTitle">Add Group</h5>
+                <button class="close text-white" type="button" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="group-errors" class="alert alert-danger d-none"></div>
+                <div class="form-group">
+                    <label>Name <span class="text-danger">*</span></label>
+                    {{ group_form.name }}
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    {{ group_form.description }}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" id="saveGroup">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Group Modal -->
+<div class="modal fade" id="delGroupModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-exclamation-triangle mr-2"></i>Delete Group</h5>
+                <button class="close text-white" type="button" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="del-group-error" class="alert alert-danger d-none"></div>
+                Delete group <strong id="delGroupName"></strong>? This cannot be undone. Groups with employees cannot be deleted.
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
+                <button class="btn btn-danger" id="confirmDelGroup">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+let editUrl = null;
+
+document.getElementById('btnAddGroup').addEventListener('click', function () {
+    editUrl = null;
+    document.getElementById('groupModalTitle').textContent = 'Add Group';
+    document.getElementById('id_name').value = '';
+    document.getElementById('id_description').value = '';
+    document.getElementById('group-errors').classList.add('d-none');
+    $('#groupModal').modal('show');
+});
+
+document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.btn-edit-group');
+    if (!btn) return;
+    editUrl = btn.dataset.url;
+    document.getElementById('groupModalTitle').textContent = 'Edit Group';
+    document.getElementById('id_name').value = btn.dataset.name;
+    document.getElementById('id_description').value = btn.dataset.description;
+    document.getElementById('group-errors').classList.add('d-none');
+    $('#groupModal').modal('show');
+});
+
+document.getElementById('saveGroup').addEventListener('click', function () {
+    const errBox = document.getElementById('group-errors');
+    errBox.classList.add('d-none');
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', CSRF);
+    formData.append('name', document.getElementById('id_name').value);
+    formData.append('description', document.getElementById('id_description').value);
+    const url = editUrl || "{% url 'employees:group_create' %}";
+    fetch(url, { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) { location.reload(); }
+            else {
+                errBox.textContent = Object.values(data.errors).flat().join(' ');
+                errBox.classList.remove('d-none');
+            }
+        });
+});
+
+let delUrl = null, delId = null;
+
+document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.btn-del-group');
+    if (!btn) return;
+    delUrl = btn.dataset.url;
+    delId  = btn.dataset.id;
+    document.getElementById('delGroupName').textContent = btn.dataset.name;
+    document.getElementById('del-group-error').classList.add('d-none');
+    $('#delGroupModal').modal('show');
+});
+
+document.getElementById('confirmDelGroup').addEventListener('click', function () {
+    fetch(delUrl, { method: 'POST', headers: { 'X-CSRFToken': CSRF } })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                document.getElementById(`group-row-${delId}`).remove();
+                $('#delGroupModal').modal('hide');
+            } else {
+                const e = document.getElementById('del-group-error');
+                e.textContent = data.error;
+                e.classList.remove('d-none');
+            }
+        });
+});
+</script>
+{% endblock %}

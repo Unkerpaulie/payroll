@@ -30,9 +30,12 @@
         <div id="collapseEmployees" class="collapse {% if request.resolver_match.app_name == 'employees' %}show{% endif %}"
             data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
-                <a class="collapse-item" href="#">Employee List</a>
-                <a class="collapse-item" href="#">Add Employee</a>
-                <a class="collapse-item" href="#">Groups</a>
+                <a class="collapse-item {% if request.resolver_match.url_name == 'list' %}active{% endif %}"
+                   href="{% url 'employees:list' %}">Employee List</a>
+                <a class="collapse-item {% if request.resolver_match.url_name == 'create' %}active{% endif %}"
+                   href="{% url 'employees:create' %}">Add Employee</a>
+                <a class="collapse-item {% if request.resolver_match.url_name == 'groups' %}active{% endif %}"
+                   href="{% url 'employees:groups' %}">Groups</a>
             </div>
         </div>
     </li>
