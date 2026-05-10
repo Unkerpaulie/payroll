@@ -20,9 +20,6 @@
         </a>
     </li>
 
-    <hr class="sidebar-divider">
-    <div class="sidebar-heading">Workforce</div>
-
     <!-- Employees -->
     <li class="nav-item {% if request.resolver_match.app_name == 'employees' %}active{% endif %}">
         <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseEmployees"
@@ -31,7 +28,7 @@
             <span>Employees</span>
         </a>
         <div id="collapseEmployees" class="collapse {% if request.resolver_match.app_name == 'employees' %}show{% endif %}"
-            aria-labelledby="headingEmployees" data-parent="#accordionSidebar">
+            data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item" href="#">Employee List</a>
                 <a class="collapse-item" href="#">Add Employee</a>
@@ -40,10 +37,7 @@
         </div>
     </li>
 
-    <hr class="sidebar-divider">
-    <div class="sidebar-heading">Scheduling</div>
-
-    <!-- Payroll Cycles -->
+    <!-- Scheduling -->
     <li class="nav-item {% if request.resolver_match.app_name == 'scheduling' %}active{% endif %}">
         <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseScheduling"
             aria-expanded="false" aria-controls="collapseScheduling">
@@ -51,7 +45,7 @@
             <span>Scheduling</span>
         </a>
         <div id="collapseScheduling" class="collapse {% if request.resolver_match.app_name == 'scheduling' %}show{% endif %}"
-            aria-labelledby="headingScheduling" data-parent="#accordionSidebar">
+            data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item" href="#">Current Cycle</a>
                 <a class="collapse-item" href="#">New Cycle</a>
@@ -61,10 +55,7 @@
         </div>
     </li>
 
-    <hr class="sidebar-divider">
-    <div class="sidebar-heading">Daily Operations</div>
-
-    <!-- Attendance / Clock-in board -->
+    <!-- Time Recording -->
     <li class="nav-item {% if request.resolver_match.app_name == 'attendance' %}active{% endif %}">
         <a class="nav-link" href="#">
             <i class="fas fa-fw fa-clock"></i>
@@ -72,10 +63,7 @@
         </a>
     </li>
 
-    <hr class="sidebar-divider">
-    <div class="sidebar-heading">Payroll</div>
-
-    <!-- Payroll Close-off -->
+    <!-- Payroll -->
     <li class="nav-item {% if request.resolver_match.app_name == 'payroll' %}active{% endif %}">
         <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePayroll"
             aria-expanded="false" aria-controls="collapsePayroll">
@@ -83,7 +71,7 @@
             <span>Payroll</span>
         </a>
         <div id="collapsePayroll" class="collapse {% if request.resolver_match.app_name == 'payroll' %}show{% endif %}"
-            aria-labelledby="headingPayroll" data-parent="#accordionSidebar">
+            data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <a class="collapse-item" href="#">Close Payroll</a>
                 <a class="collapse-item" href="#">Payslips</a>
@@ -92,9 +80,6 @@
             </div>
         </div>
     </li>
-
-    <hr class="sidebar-divider">
-    <div class="sidebar-heading">Administration</div>
 
     <!-- Settings -->
     <li class="nav-item {% if request.resolver_match.app_name == 'core' and request.resolver_match.url_name == 'settings' %}active{% endif %}">

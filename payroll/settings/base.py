@@ -36,7 +36,19 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Local apps
     "core.apps.CoreConfig",
+    "accounts.apps.AccountsConfig",
+    "employees.apps.EmployeesConfig",
+    "scheduling.apps.SchedulingConfig",
+    "attendance.apps.AttendanceConfig",
+    "payroll_close.apps.PayrollCloseConfig",
 ]
+
+# Custom user model — must be set before any migration that references auth.
+AUTH_USER_MODEL = "accounts.User"
+
+LOGIN_URL = "accounts:login"
+LOGIN_REDIRECT_URL = "core:home"
+LOGOUT_REDIRECT_URL = "accounts:login"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
