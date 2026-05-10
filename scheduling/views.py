@@ -77,6 +77,16 @@ class CycleCreateView(LoginRequiredMixin, FormView):
     def form_valid(self, form):
         cfg = GlobalSettings.get()
         schedule_start = form.cleaned_data["schedule_start"]
+
+        # If a cycle already exists for this period, open it — never duplicate.
+        existing = PayrollCycle.objects.filter(schedule_start=schedule_start).first()
+        if existing:
+            messages.info(
+                self.request,
+                f"A payroll cycle for {schedule_start} already exists — opened it for you."
+            )
+            return redirect(reverse("scheduling:cycle_detail", kwargs={"pk": existing.pk}))
+
         schedule_end   = schedule_start + datetime.timedelta(days=13)
         offset         = cfg.payroll_cycle_offset_days
         payroll_start  = schedule_start - datetime.timedelta(days=offset)

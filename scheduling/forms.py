@@ -38,11 +38,6 @@ class CycleCreateForm(forms.Form):
         from core.models import GlobalSettings
         date = self.cleaned_data["schedule_start"]
 
-        if PayrollCycle.objects.filter(status=PayrollCycle.Status.OPEN).exists():
-            raise ValidationError(
-                "There is already an open payroll cycle. Close it before starting a new one."
-            )
-
         settings = GlobalSettings.get()
         anchor = settings.schedule_cycle_start
         week_start_day = settings.week_start_day  # 0=Mon … 6=Sun (same as Python weekday())
@@ -60,6 +55,21 @@ class CycleCreateForm(forms.Form):
             if diff < 0 or diff % 14 != 0:
                 raise ValidationError(
                     "The selected date is not a valid bi-weekly start from the configured cycle anchor."
+                )
+
+        # If a cycle already exists for this exact start date we will redirect
+        # to it in form_valid — that is not an error.  Block only when there is
+        # a *different* open cycle (overlapping periods are not allowed).
+        if not PayrollCycle.objects.filter(schedule_start=date).exists():
+            open_cycles = PayrollCycle.objects.filter(
+                status=PayrollCycle.Status.OPEN
+            ).exclude(schedule_start=date)
+            if open_cycles.exists():
+                existing = open_cycles.first()
+                raise ValidationError(
+                    f"There is already an open payroll cycle "
+                    f"({existing.schedule_start} – {existing.schedule_end}). "
+                    f"Close it before starting a new one."
                 )
 
         return date
