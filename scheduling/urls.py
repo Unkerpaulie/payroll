@@ -4,7 +4,7 @@ from .views import (
     AdHocShiftCreateView,
     CycleListView, CycleCreateView, CycleDetailView,
     ScheduleBuilderView,
-    ShiftCreateView, ShiftDeleteView,
+    ShiftCreateView, ShiftUpdateView, ShiftDeleteView,
 )
 
 app_name = "scheduling"
@@ -20,6 +20,7 @@ urlpatterns = [
 
     # Shifts (AJAX)
     path("shift/add/", ShiftCreateView.as_view(), name="shift_create"),
+    path("shift/<int:pk>/edit/", ShiftUpdateView.as_view(), name="shift_update"),
     path("shift/<int:pk>/delete/", ShiftDeleteView.as_view(), name="shift_delete"),
 
     # Ad-hoc (dashboard)

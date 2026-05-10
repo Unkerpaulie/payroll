@@ -219,6 +219,49 @@ class ShiftCreateView(LoginRequiredMixin, View):
             "include_lunch": shift.include_lunch,
             "hours": round(hours, 2),
             "delete_url": reverse("scheduling:shift_delete", kwargs={"pk": shift.pk}),
+            "edit_url":   reverse("scheduling:shift_update",  kwargs={"pk": shift.pk}),
+        })
+
+
+# ── Shift update (AJAX) ───────────────────────────────────────────────────────
+
+class ShiftUpdateView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        shift = get_object_or_404(ScheduledShift, pk=pk)
+        cfg   = GlobalSettings.get()
+
+        # Parse times
+        try:
+            start_time = datetime.time.fromisoformat(request.POST.get("start_time", ""))
+            end_time   = datetime.time.fromisoformat(request.POST.get("end_time", ""))
+        except ValueError:
+            return JsonResponse({"ok": False, "error": "Invalid time format."}, status=400)
+
+        if end_time <= start_time:
+            return JsonResponse(
+                {"ok": False, "error": "End time must be after start time."}, status=400
+            )
+
+        old_hours = float(shift.gross_hours(cfg.default_lunch_duration_minutes))
+
+        shift.start_time    = start_time
+        shift.end_time      = end_time
+        shift.include_lunch = "include_lunch" in request.POST
+        shift.save()
+
+        new_hours = float(shift.gross_hours(cfg.default_lunch_duration_minutes))
+
+        return JsonResponse({
+            "ok":           True,
+            "shift_id":     shift.pk,
+            "employee_id":  shift.employee_id,
+            "start_time":   shift.start_time.strftime("%H:%M"),
+            "end_time":     shift.end_time.strftime("%H:%M"),
+            "include_lunch": shift.include_lunch,
+            "old_hours":    round(old_hours, 2),
+            "new_hours":    round(new_hours, 2),
+            "delete_url":   reverse("scheduling:shift_delete", kwargs={"pk": shift.pk}),
+            "edit_url":     reverse("scheduling:shift_update", kwargs={"pk": shift.pk}),
         })
 
 

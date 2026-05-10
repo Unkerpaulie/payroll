@@ -69,20 +69,35 @@
                         style="background: {% if cell.shift %}#eaf4fb{% endif %}">
                         {% if cell.shift %}
                         <div class="shift-card" id="shift-card-{{ cell.shift.pk }}">
-                            <div class="small font-weight-bold text-primary">
+                            <div class="small font-weight-bold text-primary shift-time">
                                 {{ cell.shift.start_time|time:"H:i" }}–{{ cell.shift.end_time|time:"H:i" }}
                             </div>
                             {% if cell.shift.include_lunch %}
-                            <div class="small text-muted"><i class="fas fa-utensils"></i> Lunch</div>
+                            <div class="small text-muted shift-lunch"><i class="fas fa-utensils"></i> Lunch</div>
                             {% endif %}
-                            <button class="btn btn-link btn-sm text-danger p-0 btn-del-shift"
-                                    data-id="{{ cell.shift.pk }}"
-                                    data-employee="{{ row.employee.pk }}"
-                                    data-date="{{ cell.date|date:'Y-m-d' }}"
-                                    data-hours="{{ cell.shift.gross_hours }}"
-                                    data-url="{% url 'scheduling:shift_delete' cell.shift.pk %}">
-                                <i class="fas fa-times-circle fa-sm"></i>
-                            </button>
+                            <div class="shift-actions">
+                                <button class="btn btn-link btn-sm text-warning p-0 btn-edit-shift"
+                                        data-id="{{ cell.shift.pk }}"
+                                        data-start="{{ cell.shift.start_time|time:'H:i' }}"
+                                        data-end="{{ cell.shift.end_time|time:'H:i' }}"
+                                        data-lunch="{{ cell.shift.include_lunch|yesno:'true,false' }}"
+                                        data-employee="{{ row.employee.pk }}"
+                                        data-employee-name="{{ row.employee.full_name }}"
+                                        data-date="{{ cell.date|date:'Y-m-d' }}"
+                                        data-date-display="{{ cell.date|date:'D, M d' }}"
+                                        data-hours="{{ cell.shift.gross_hours }}"
+                                        data-edit-url="{% url 'scheduling:shift_update' cell.shift.pk %}">
+                                    <i class="fas fa-pencil-alt fa-sm"></i>
+                                </button>
+                                <button class="btn btn-link btn-sm text-danger p-0 btn-del-shift"
+                                        data-id="{{ cell.shift.pk }}"
+                                        data-employee="{{ row.employee.pk }}"
+                                        data-date="{{ cell.date|date:'Y-m-d' }}"
+                                        data-hours="{{ cell.shift.gross_hours }}"
+                                        data-url="{% url 'scheduling:shift_delete' cell.shift.pk %}">
+                                    <i class="fas fa-times-circle fa-sm"></i>
+                                </button>
+                            </div>
                         </div>
                         {% else %}
                         <button class="btn btn-link btn-sm text-primary p-0 btn-add-shift"
@@ -113,13 +128,13 @@
     </div>
 </div>
 
-<!-- Add Shift Modal -->
+<!-- Add / Edit Shift Modal -->
 <div class="modal fade" id="addShiftModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title">
-                    <i class="fas fa-clock mr-2"></i>Add Shift
+                    <i class="fas fa-clock mr-2"></i><span id="modalTitle">Add Shift</span>
                     <small id="modalSubtitle" class="font-weight-normal ml-1"></small>
                 </h5>
                 <button class="close text-white" type="button" data-dismiss="modal"><span>&times;</span></button>
@@ -129,6 +144,8 @@
                 <input type="hidden" id="modal_week_pk">
                 <input type="hidden" id="modal_employee_id">
                 <input type="hidden" id="modal_date">
+                <input type="hidden" id="modal_shift_id">
+                <input type="hidden" id="modal_edit_url">
                 <div class="form-group">
                     <label class="font-weight-bold">Employee</label>
                     <p id="modal_employee_name" class="mb-0 form-control-plaintext font-weight-bold text-primary"></p>
@@ -155,7 +172,7 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
                 <button class="btn btn-primary" id="saveShift">
-                    <i class="fas fa-plus mr-1"></i>Add Shift
+                    <i class="fas fa-plus mr-1" id="saveShiftIcon"></i><span id="saveShiftLabel">Add Shift</span>
                 </button>
             </div>
         </div>
@@ -167,37 +184,104 @@
 <script>
 const CSRF = '{{ csrf_token }}';
 const SHIFT_CREATE_URL = "{% url 'scheduling:shift_create' %}";
+let editMode = false;
 
-// ── Open modal ─────────────────────────────────────────────────────────────
+// ── Shared modal helper ────────────────────────────────────────────────────
+function openModal({ weekPk='', employeeId, employeeName, date, dateDisplay,
+                     startTime='', endTime='', includeLunch=false,
+                     shiftId='', editUrl='', isEdit=false }) {
+    editMode = isEdit;
+    document.getElementById('modal_week_pk').value    = weekPk;
+    document.getElementById('modal_employee_id').value = employeeId;
+    document.getElementById('modal_date').value        = date;
+    document.getElementById('modal_shift_id').value    = shiftId;
+    document.getElementById('modal_edit_url').value    = editUrl;
+    document.getElementById('modal_employee_name').textContent = employeeName;
+    document.getElementById('modalSubtitle').textContent = '– ' + dateDisplay;
+    document.getElementById('modal_start_time').value  = startTime;
+    document.getElementById('modal_end_time').value    = endTime;
+    document.getElementById('modal_include_lunch').checked = includeLunch;
+    document.getElementById('shift-errors').classList.add('d-none');
+    document.getElementById('modalTitle').textContent    = isEdit ? 'Edit Shift' : 'Add Shift';
+    document.getElementById('saveShiftIcon').className   = isEdit ? 'fas fa-save mr-1' : 'fas fa-plus mr-1';
+    document.getElementById('saveShiftLabel').textContent = isEdit ? 'Save Changes' : 'Add Shift';
+    $('#addShiftModal').modal('show');
+}
+
+// ── Open for ADD ───────────────────────────────────────────────────────────
 document.addEventListener('click', function (e) {
     const btn = e.target.closest('.btn-add-shift');
     if (!btn) return;
-    document.getElementById('modal_week_pk').value = btn.dataset.weekPk;
-    document.getElementById('modal_employee_id').value = btn.dataset.employeeId;
-    document.getElementById('modal_date').value = btn.dataset.date;
-    document.getElementById('modal_employee_name').textContent = btn.dataset.employeeName;
-    document.getElementById('modalSubtitle').textContent = '– ' + btn.dataset.dateDisplay;
-    document.getElementById('modal_start_time').value = '';
-    document.getElementById('modal_end_time').value = '';
-    document.getElementById('modal_include_lunch').checked = false;
-    document.getElementById('shift-errors').classList.add('d-none');
-    $('#addShiftModal').modal('show');
+    openModal({
+        weekPk: btn.dataset.weekPk, employeeId: btn.dataset.employeeId,
+        employeeName: btn.dataset.employeeName, date: btn.dataset.date,
+        dateDisplay: btn.dataset.dateDisplay,
+    });
 });
 
-// ── Save shift ─────────────────────────────────────────────────────────────
+// ── Open for EDIT ──────────────────────────────────────────────────────────
+document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.btn-edit-shift');
+    if (!btn) return;
+    openModal({
+        employeeId: btn.dataset.employee, employeeName: btn.dataset.employeeName,
+        date: btn.dataset.date, dateDisplay: btn.dataset.dateDisplay,
+        startTime: btn.dataset.start, endTime: btn.dataset.end,
+        includeLunch: btn.dataset.lunch === 'true',
+        shiftId: btn.dataset.id, editUrl: btn.dataset.editUrl, isEdit: true,
+    });
+});
+
+// ── Shared shift card HTML builder ─────────────────────────────────────────
+function buildShiftCard(shiftId, empId, date, startTime, endTime, includeLunch, hours, deleteUrl, editUrl, empName) {
+    const lunchHtml = includeLunch
+        ? '<div class="small text-muted shift-lunch"><i class="fas fa-utensils"></i> Lunch</div>' : '';
+    return `
+    <div class="shift-card" id="shift-card-${shiftId}">
+        <div class="small font-weight-bold text-primary shift-time">${startTime}–${endTime}</div>
+        ${lunchHtml}
+        <div class="shift-actions">
+            <button class="btn btn-link btn-sm text-warning p-0 btn-edit-shift"
+                    data-id="${shiftId}" data-start="${startTime}" data-end="${endTime}"
+                    data-lunch="${includeLunch ? 'true' : 'false'}"
+                    data-employee="${empId}" data-employee-name="${empName}"
+                    data-date="${date}" data-date-display="${formatDateDisplay(date)}"
+                    data-hours="${hours}" data-edit-url="${editUrl}">
+                <i class="fas fa-pencil-alt fa-sm"></i></button>
+            <button class="btn btn-link btn-sm text-danger p-0 btn-del-shift"
+                    data-id="${shiftId}" data-employee="${empId}"
+                    data-date="${date}" data-hours="${hours}"
+                    data-url="${deleteUrl}">
+                <i class="fas fa-times-circle fa-sm"></i></button>
+        </div>
+    </div>`;
+}
+
+// ── Save shift (add OR edit) ────────────────────────────────────────────────
 document.getElementById('saveShift').addEventListener('click', function () {
     const errBox = document.getElementById('shift-errors');
     errBox.classList.add('d-none');
     const fd = new FormData();
     fd.append('csrfmiddlewaretoken', CSRF);
-    fd.append('week_pk',    document.getElementById('modal_week_pk').value);
-    fd.append('date',       document.getElementById('modal_date').value);
-    fd.append('employee',   document.getElementById('modal_employee_id').value);
     fd.append('start_time', document.getElementById('modal_start_time').value);
     fd.append('end_time',   document.getElementById('modal_end_time').value);
     if (document.getElementById('modal_include_lunch').checked) fd.append('include_lunch', 'on');
 
-    fetch(SHIFT_CREATE_URL, { method: 'POST', body: fd })
+    const empId   = document.getElementById('modal_employee_id').value;
+    const date    = document.getElementById('modal_date').value;
+    const empName = document.getElementById('modal_employee_name').textContent;
+
+    let url;
+    if (editMode) {
+        url = document.getElementById('modal_edit_url').value;
+    } else {
+        url = SHIFT_CREATE_URL;
+        fd.append('week_pk',  document.getElementById('modal_week_pk').value);
+        fd.append('date',     date);
+        fd.append('employee', empId);
+    }
+
+    fetch(url, { method: 'POST', body: fd })
         .then(r => r.json())
         .then(data => {
             if (!data.ok) {
@@ -208,28 +292,39 @@ document.getElementById('saveShift').addEventListener('click', function () {
                 errBox.classList.remove('d-none');
                 return;
             }
-            const empId = data.employee_id;
-            const date  = document.getElementById('modal_date').value;
-            const addBtn = document.querySelector(
-                `.btn-add-shift[data-employee-id="${empId}"][data-date="${date}"]`
-            );
-            if (addBtn) {
-                const cell = addBtn.closest('td');
-                cell.style.background = '#eaf4fb';
-                const lunchHtml = data.include_lunch
-                    ? '<div class="small text-muted"><i class="fas fa-utensils"></i> Lunch</div>' : '';
-                cell.innerHTML = `
-                <div class="shift-card" id="shift-card-${data.shift_id}">
-                    <div class="small font-weight-bold text-primary">${data.start_time}–${data.end_time}</div>
-                    ${lunchHtml}
-                    <button class="btn btn-link btn-sm text-danger p-0 btn-del-shift"
-                            data-id="${data.shift_id}" data-employee="${empId}"
-                            data-date="${date}" data-hours="${data.hours}"
-                            data-url="${data.delete_url}">
-                        <i class="fas fa-times-circle fa-sm"></i></button>
-                </div>`;
+
+            if (editMode) {
+                // Update existing card in place
+                const card = document.getElementById(`shift-card-${data.shift_id}`);
+                if (card) {
+                    card.outerHTML = buildShiftCard(
+                        data.shift_id, data.employee_id, date,
+                        data.start_time, data.end_time, data.include_lunch,
+                        data.new_hours, data.delete_url, data.edit_url, empName
+                    );
+                }
+                // Adjust hours: remove old, add new
+                const hoursCell = document.getElementById(`hours-${data.employee_id}`);
+                if (hoursCell) {
+                    let current = parseFloat(hoursCell.textContent) || 0;
+                    hoursCell.textContent = (current - data.old_hours + data.new_hours).toFixed(1);
+                }
+            } else {
+                // Insert new card where the + button was
+                const addBtn = document.querySelector(
+                    `.btn-add-shift[data-employee-id="${empId}"][data-date="${date}"]`
+                );
+                if (addBtn) {
+                    const cell = addBtn.closest('td');
+                    cell.style.background = '#eaf4fb';
+                    cell.innerHTML = buildShiftCard(
+                        data.shift_id, empId, date,
+                        data.start_time, data.end_time, data.include_lunch,
+                        data.hours, data.delete_url, data.edit_url, empName
+                    );
+                }
+                updateHours(empId, data.hours, 'add');
             }
-            updateHours(empId, data.hours, 'add');
             $('#addShiftModal').modal('hide');
         });
 });
