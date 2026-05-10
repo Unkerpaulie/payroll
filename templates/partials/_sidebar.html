@@ -1,0 +1,115 @@
+{% load static %}
+<!-- Sidebar -->
+<ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+
+    <!-- Brand -->
+    <a class="sidebar-brand d-flex align-items-center justify-content-center" href="{% url 'core:home' %}">
+        <div class="sidebar-brand-icon">
+            <i class="fas fa-money-check-alt"></i>
+        </div>
+        <div class="sidebar-brand-text mx-3">PayrollPro</div>
+    </a>
+
+    <hr class="sidebar-divider my-0">
+
+    <!-- Dashboard -->
+    <li class="nav-item {% if request.resolver_match.app_name == 'core' and request.resolver_match.url_name == 'home' %}active{% endif %}">
+        <a class="nav-link" href="{% url 'core:home' %}">
+            <i class="fas fa-fw fa-tachometer-alt"></i>
+            <span>Dashboard</span>
+        </a>
+    </li>
+
+    <hr class="sidebar-divider">
+    <div class="sidebar-heading">Workforce</div>
+
+    <!-- Employees -->
+    <li class="nav-item {% if request.resolver_match.app_name == 'employees' %}active{% endif %}">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseEmployees"
+            aria-expanded="false" aria-controls="collapseEmployees">
+            <i class="fas fa-fw fa-users"></i>
+            <span>Employees</span>
+        </a>
+        <div id="collapseEmployees" class="collapse {% if request.resolver_match.app_name == 'employees' %}show{% endif %}"
+            aria-labelledby="headingEmployees" data-parent="#accordionSidebar">
+            <div class="bg-white py-2 collapse-inner rounded">
+                <a class="collapse-item" href="#">Employee List</a>
+                <a class="collapse-item" href="#">Add Employee</a>
+                <a class="collapse-item" href="#">Groups</a>
+            </div>
+        </div>
+    </li>
+
+    <hr class="sidebar-divider">
+    <div class="sidebar-heading">Scheduling</div>
+
+    <!-- Payroll Cycles -->
+    <li class="nav-item {% if request.resolver_match.app_name == 'scheduling' %}active{% endif %}">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseScheduling"
+            aria-expanded="false" aria-controls="collapseScheduling">
+            <i class="fas fa-fw fa-calendar-alt"></i>
+            <span>Scheduling</span>
+        </a>
+        <div id="collapseScheduling" class="collapse {% if request.resolver_match.app_name == 'scheduling' %}show{% endif %}"
+            aria-labelledby="headingScheduling" data-parent="#accordionSidebar">
+            <div class="bg-white py-2 collapse-inner rounded">
+                <a class="collapse-item" href="#">Current Cycle</a>
+                <a class="collapse-item" href="#">New Cycle</a>
+                <a class="collapse-item" href="#">Build Schedule</a>
+                <a class="collapse-item" href="#">Print Schedule</a>
+            </div>
+        </div>
+    </li>
+
+    <hr class="sidebar-divider">
+    <div class="sidebar-heading">Daily Operations</div>
+
+    <!-- Attendance / Clock-in board -->
+    <li class="nav-item {% if request.resolver_match.app_name == 'attendance' %}active{% endif %}">
+        <a class="nav-link" href="#">
+            <i class="fas fa-fw fa-clock"></i>
+            <span>Time Recording</span>
+        </a>
+    </li>
+
+    <hr class="sidebar-divider">
+    <div class="sidebar-heading">Payroll</div>
+
+    <!-- Payroll Close-off -->
+    <li class="nav-item {% if request.resolver_match.app_name == 'payroll' %}active{% endif %}">
+        <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePayroll"
+            aria-expanded="false" aria-controls="collapsePayroll">
+            <i class="fas fa-fw fa-file-invoice-dollar"></i>
+            <span>Payroll</span>
+        </a>
+        <div id="collapsePayroll" class="collapse {% if request.resolver_match.app_name == 'payroll' %}show{% endif %}"
+            aria-labelledby="headingPayroll" data-parent="#accordionSidebar">
+            <div class="bg-white py-2 collapse-inner rounded">
+                <a class="collapse-item" href="#">Close Payroll</a>
+                <a class="collapse-item" href="#">Payslips</a>
+                <a class="collapse-item" href="#">Paysheet</a>
+                <a class="collapse-item" href="#">Attendance Report</a>
+            </div>
+        </div>
+    </li>
+
+    <hr class="sidebar-divider">
+    <div class="sidebar-heading">Administration</div>
+
+    <!-- Settings -->
+    <li class="nav-item {% if request.resolver_match.app_name == 'core' and request.resolver_match.url_name == 'settings' %}active{% endif %}">
+        <a class="nav-link" href="#">
+            <i class="fas fa-fw fa-cogs"></i>
+            <span>Settings</span>
+        </a>
+    </li>
+
+    <hr class="sidebar-divider d-none d-md-block">
+
+    <!-- Sidebar Toggler -->
+    <div class="text-center d-none d-md-inline">
+        <button class="rounded-circle border-0" id="sidebarToggle"></button>
+    </div>
+
+</ul>
+<!-- End Sidebar -->

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — PayrollPro{% endblock %}
+
+{% block page_header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Dashboard</h1>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- Summary Cards Row -->
+<div class="row">
+
+    <!-- Employees card -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Employees</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">—</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-users fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Cycle card -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Active Cycle</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">—</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-calendar-alt fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shifts Today card -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Shifts Today</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">—</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-clock fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payroll Status card -->
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Payroll Status</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">—</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-file-invoice-dollar fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+<!-- End Summary Cards Row -->
+
+<!-- Quick Actions -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <a href="#" class="btn btn-primary mr-2 mb-2">
+                    <i class="fas fa-clock mr-1"></i> Time Recording
+                </a>
+                <a href="#" class="btn btn-success mr-2 mb-2">
+                    <i class="fas fa-calendar-plus mr-1"></i> New Payroll Cycle
+                </a>
+                <a href="#" class="btn btn-info mr-2 mb-2">
+                    <i class="fas fa-user-plus mr-1"></i> Add Employee
+                </a>
+                <a href="#" class="btn btn-warning mr-2 mb-2">
+                    <i class="fas fa-file-invoice-dollar mr-1"></i> Close Payroll
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
