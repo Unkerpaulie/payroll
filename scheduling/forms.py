@@ -24,21 +24,44 @@ _SELECT = "form-control"
 class CycleCreateForm(forms.Form):
     schedule_start = forms.DateField(
         label="Schedule Start Date",
-        help_text="First day of the 14-day schedule window (should be the configured week-start day).",
-        widget=forms.DateInput(attrs={"class": _INPUT, "type": "date"}),
-    )
-    pay_date = forms.DateField(
-        label="Pay Date",
-        help_text="Date employees receive their paycheques for this cycle.",
-        widget=forms.DateInput(attrs={"class": _INPUT, "type": "date"}),
+        # type="text" so Flatpickr controls the picker; value is still YYYY-MM-DD
+        widget=forms.DateInput(attrs={
+            "class": _INPUT,
+            "type": "text",
+            "autocomplete": "off",
+            "readonly": "readonly",
+            "id": "id_schedule_start",
+        }),
     )
 
     def clean_schedule_start(self):
+        from core.models import GlobalSettings
         date = self.cleaned_data["schedule_start"]
+
         if PayrollCycle.objects.filter(status=PayrollCycle.Status.OPEN).exists():
             raise ValidationError(
                 "There is already an open payroll cycle. Close it before starting a new one."
             )
+
+        settings = GlobalSettings.get()
+        anchor = settings.schedule_cycle_start
+        week_start_day = settings.week_start_day  # 0=Mon … 6=Sun (same as Python weekday())
+
+        # Must be the configured week-start day of week.
+        if date.weekday() != week_start_day:
+            day_name = dict(GlobalSettings.WeekStartDay.choices)[week_start_day]
+            raise ValidationError(
+                f"The schedule must start on a {day_name} (matching the Week Starts On setting)."
+            )
+
+        # If an anchor is configured, must be a valid 14-day multiple from it.
+        if anchor:
+            diff = (date - anchor).days
+            if diff < 0 or diff % 14 != 0:
+                raise ValidationError(
+                    "The selected date is not a valid bi-weekly start from the configured cycle anchor."
+                )
+
         return date
 
 

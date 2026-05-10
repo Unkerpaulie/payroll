@@ -30,14 +30,58 @@ class CycleCreateView(LoginRequiredMixin, FormView):
     form_class = CycleCreateForm
     template_name = "scheduling/cycle_form.html"
 
+    # ── helpers ───────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _next_valid_start(anchor, today=None):
+        """Return the next bi-weekly start date on or after tomorrow."""
+        if anchor is None:
+            return None
+        today = today or datetime.date.today()
+        days_since = (today - anchor).days
+        if days_since < 0:
+            return anchor
+        cycle_num = days_since // 14
+        candidate = anchor + datetime.timedelta(days=(cycle_num + 1) * 14)
+        return candidate
+
+    @staticmethod
+    def _compute_pay_date(payroll_end, pay_weekday_django):
+        """Return the next occurrence of pay_weekday_django after payroll_end."""
+        # Both use the same scale: 0=Mon … 6=Sun
+        days_ahead = (pay_weekday_django - payroll_end.weekday()) % 7
+        if days_ahead == 0:
+            days_ahead = 7          # Never pay on payroll_end itself; always at least 1 day ahead
+        return payroll_end + datetime.timedelta(days=days_ahead)
+
+    # ── context ───────────────────────────────────────────────────────────────
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        cfg = GlobalSettings.get()
+        anchor = cfg.schedule_cycle_start
+        # Django 0=Mon…6=Sun  →  JS Date.getDay() 0=Sun…6=Sat
+        week_start_day_js = (cfg.week_start_day + 1) % 7
+        next_start = self._next_valid_start(anchor)
+        ctx.update({
+            "anchor_date": anchor.isoformat() if anchor else "",
+            "week_start_day_js": week_start_day_js,
+            "next_valid_start": next_start.isoformat() if next_start else "",
+            "has_anchor": bool(anchor),
+            "offset_days": cfg.payroll_cycle_offset_days,
+        })
+        return ctx
+
+    # ── save ──────────────────────────────────────────────────────────────────
+
     def form_valid(self, form):
-        settings = GlobalSettings.get()
+        cfg = GlobalSettings.get()
         schedule_start = form.cleaned_data["schedule_start"]
         schedule_end   = schedule_start + datetime.timedelta(days=13)
-        offset         = settings.payroll_cycle_offset_days
+        offset         = cfg.payroll_cycle_offset_days
         payroll_start  = schedule_start - datetime.timedelta(days=offset)
         payroll_end    = schedule_end   - datetime.timedelta(days=offset)
-        pay_date       = form.cleaned_data["pay_date"]
+        pay_date       = self._compute_pay_date(payroll_end, cfg.pay_weekday)
 
         cycle = PayrollCycle.objects.create(
             schedule_start=schedule_start,
@@ -48,7 +92,6 @@ class CycleCreateView(LoginRequiredMixin, FormView):
             status=PayrollCycle.Status.OPEN,
         )
 
-        # Create a Schedule + two Weeks for every group that has active employees.
         groups = Group.objects.filter(
             employees__status=Employee.Status.ACTIVE
         ).distinct().order_by("name")

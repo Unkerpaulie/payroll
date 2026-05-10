@@ -139,6 +139,11 @@ class GlobalSettings(models.Model):
         default=CloseWeek.WEEK_2,
         help_text="Which week of the schedule cycle the close day falls in.",
     )
+    pay_weekday = models.IntegerField(
+        choices=WeekStartDay.choices,
+        default=4,  # Friday
+        help_text="Day of the week on which paychecks are disbursed (used to auto-compute pay date).",
+    )
 
     # --- Cycle anchors ---------------------------------------------------
     schedule_cycle_start = models.DateField(

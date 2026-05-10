@@ -95,29 +95,7 @@
         <!-- Right column -->
         <div class="col-lg-6">
 
-            <!-- Payroll Close Day -->
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-file-invoice-dollar mr-2"></i>Payroll Close Day
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <p class="small text-muted mb-3">
-                        The "Close Payroll" button will appear on the dashboard only on this day.
-                    </p>
-                    <div class="form-group">
-                        <label for="{{ form.payroll_close_weekday.id_for_label }}">Day of the Week</label>
-                        {{ form.payroll_close_weekday }}
-                    </div>
-                    <div class="form-group mb-0">
-                        <label for="{{ form.payroll_close_week.id_for_label }}">Which Week of the Cycle</label>
-                        {{ form.payroll_close_week }}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Cycle Anchors -->
+            <!-- Cycle Anchors (top of right column) -->
             <div class="card shadow mb-4">
                 <div class="card-header py-3">
                     <h6 class="m-0 font-weight-bold text-primary">
@@ -127,13 +105,15 @@
                 <div class="card-body">
                     <p class="small text-muted mb-3">
                         Set once when the system goes live. Every subsequent bi-weekly
-                        schedule cycle is calculated as a 14-day multiple from the start date.
+                        schedule cycle is calculated as a 14-day multiple from this start date.
+                        The anchor date must fall on the configured <strong>Week Starts On</strong> day.
                     </p>
                     <div class="form-group">
                         <label for="{{ form.schedule_cycle_start.id_for_label }}">
                             First Schedule Cycle Start Date
                         </label>
                         {{ form.schedule_cycle_start }}
+                        <small class="form-text text-muted" id="cycle-start-hint"></small>
                         {% if form.schedule_cycle_start.errors %}
                             <div class="invalid-feedback d-block">{{ form.schedule_cycle_start.errors.0 }}</div>
                         {% endif %}
@@ -148,6 +128,37 @@
                 </div>
             </div>
 
+            <!-- Payroll Timing -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-file-invoice-dollar mr-2"></i>Payroll Timing
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-3">
+                        The "Close Payroll" button appears on the dashboard on the close day.
+                        The pay date for each new cycle is auto-computed from the Pay Day setting.
+                    </p>
+                    <div class="form-group">
+                        <label for="{{ form.payroll_close_weekday.id_for_label }}">Close Day of the Week</label>
+                        {{ form.payroll_close_weekday }}
+                    </div>
+                    <div class="form-group">
+                        <label for="{{ form.payroll_close_week.id_for_label }}">Close – Which Week of the Cycle</label>
+                        {{ form.payroll_close_week }}
+                    </div>
+                    <div class="form-group mb-0">
+                        <label for="{{ form.pay_weekday.id_for_label }}">Pay Day of the Week</label>
+                        {{ form.pay_weekday }}
+                        <small class="form-text text-muted">
+                            Paychecks are auto-scheduled for the next occurrence of this day
+                            after each cycle's payroll end date.
+                        </small>
+                    </div>
+                </div>
+            </div>
+
             <div class="d-flex justify-content-end">
                 <button type="submit" class="btn btn-primary btn-lg shadow-sm">
                     <i class="fas fa-save mr-2"></i>Save Settings
@@ -157,4 +168,45 @@
         </div>
     </div>
 </form>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+// Django WeekStartDay (0=Mon … 6=Sun)  →  JS Date.getDay() (0=Sun … 6=Sat)
+function djangoDayToJs(d) { return (parseInt(d) + 1) % 7; }
+
+const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+let cyclePicker = null;
+
+function initCyclePicker(jsDayOfWeek) {
+    if (cyclePicker) { cyclePicker.destroy(); cyclePicker = null; }
+    cyclePicker = flatpickr('#id_schedule_cycle_start', {
+        dateFormat: 'Y-m-d',
+        allowInput: false,
+        disable: [function(date) {
+            return date.getDay() !== jsDayOfWeek;
+        }],
+    });
+    // Update the hint text
+    document.getElementById('cycle-start-hint').textContent =
+        'Only ' + DAY_NAMES[jsDayOfWeek] + 's are selectable based on the Week Starts On setting.';
+}
+
+// Initialise on page load using the currently saved week_start_day value.
+const weekStartSelect = document.getElementById('id_week_start_day');
+initCyclePicker(djangoDayToJs(weekStartSelect.value));
+
+// Re-initialise whenever the user changes the week start day.
+weekStartSelect.addEventListener('change', function () {
+    initCyclePicker(djangoDayToJs(this.value));
+    // Clear the anchor date field since the previous date may no longer be valid.
+    if (cyclePicker) cyclePicker.clear();
+});
+</script>
 {% endblock %}

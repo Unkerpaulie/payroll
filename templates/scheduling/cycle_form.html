@@ -3,6 +3,10 @@
 
 {% block title %}New Payroll Cycle – PayrollPro{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+{% endblock %}
+
 {% block page_header %}
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
     <h1 class="h3 mb-0 text-gray-800">Start New Payroll Cycle</h1>
@@ -15,6 +19,16 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-6">
+
+        {% if not has_anchor %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            No cycle anchor date is set. Please configure the
+            <a href="{% url 'core:settings' %}"><strong>First Schedule Cycle Start Date</strong></a>
+            in Settings before opening a cycle.
+        </div>
+        {% endif %}
+
         <div class="card shadow mb-4">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-primary">
@@ -35,34 +49,33 @@
                             Schedule Start Date <span class="text-danger">*</span>
                         </label>
                         {{ form.schedule_start }}
-                        <small class="form-text text-muted">{{ form.schedule_start.help_text }}</small>
+                        <small class="form-text text-muted" id="startHint">
+                            {% if has_anchor %}
+                                Only valid bi-weekly start dates are selectable.
+                            {% else %}
+                                Set the cycle anchor in Settings to enable date filtering.
+                            {% endif %}
+                        </small>
                         {% if form.schedule_start.errors %}
                             <div class="invalid-feedback d-block">{{ form.schedule_start.errors.0 }}</div>
                         {% endif %}
                     </div>
 
-                    <div class="form-group">
-                        <label for="{{ form.pay_date.id_for_label }}">
-                            Pay Date <span class="text-danger">*</span>
-                        </label>
-                        {{ form.pay_date }}
-                        <small class="form-text text-muted">{{ form.pay_date.help_text }}</small>
-                        {% if form.pay_date.errors %}
-                            <div class="invalid-feedback d-block">{{ form.pay_date.errors.0 }}</div>
-                        {% endif %}
+                    <!-- Computed preview (updated by JS) -->
+                    <div id="cyclePreview" class="alert alert-info small d-none mb-4">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        <span id="previewText"></span>
                     </div>
 
-                    <div class="alert alert-info small mb-4">
-                        <i class="fas fa-info-circle mr-1"></i>
-                        The 14-day schedule window and payroll window are computed automatically
-                        from the start date and the offset configured in
-                        <a href="{% url 'core:settings' %}">Settings</a>.
-                        A schedule will be created for every group that has active employees.
+                    <div class="alert alert-secondary small mb-4">
+                        <i class="fas fa-cogs mr-1"></i>
+                        The schedule window, payroll window, and pay date are all computed automatically
+                        from Settings. <a href="{% url 'core:settings' %}">Change settings.</a>
                     </div>
 
                     <div class="d-flex justify-content-end">
                         <a href="{% url 'scheduling:cycle_list' %}" class="btn btn-secondary mr-2">Cancel</a>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary" {% if not has_anchor %}disabled{% endif %}>
                             <i class="fas fa-play mr-1"></i> Open Cycle
                         </button>
                     </div>
@@ -72,4 +85,49 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+const ANCHOR_DATE    = "{{ anchor_date }}";       // "YYYY-MM-DD" or ""
+const WEEK_START_JS  = {{ week_start_day_js }};   // 0=Sun … 6=Sat
+const NEXT_VALID     = "{{ next_valid_start }}";  // "YYYY-MM-DD" or ""
+const OFFSET_DAYS    = {{ offset_days }};
+
+// Parse anchor once
+const anchorMs = ANCHOR_DATE ? new Date(ANCHOR_DATE + 'T00:00:00').getTime() : null;
+const MS_PER_DAY = 86400000;
+
+flatpickr('#id_schedule_start', {
+    dateFormat: 'Y-m-d',
+    defaultDate: NEXT_VALID || null,
+    allowInput: false,
+    disable: [function (date) {
+        // Must be the configured week-start day of week
+        if (date.getDay() !== WEEK_START_JS) return true;
+        // If anchor is set, must be a valid 14-day multiple from it
+        if (anchorMs !== null) {
+            const diffDays = Math.round((date.getTime() - anchorMs) / MS_PER_DAY);
+            if (diffDays < 0 || diffDays % 14 !== 0) return true;
+        }
+        return false;
+    }],
+    onChange: function (selectedDates) {
+        if (!selectedDates.length) {
+            document.getElementById('cyclePreview').classList.add('d-none');
+            return;
+        }
+        const start = selectedDates[0];
+        const end   = new Date(start.getTime() + 13 * MS_PER_DAY);
+        const pStart = new Date(start.getTime() - OFFSET_DAYS * MS_PER_DAY);
+        const pEnd   = new Date(end.getTime()   - OFFSET_DAYS * MS_PER_DAY);
+        const fmt    = d => d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+        document.getElementById('previewText').innerHTML =
+            `<strong>Schedule:</strong> ${fmt(start)} – ${fmt(end)} &nbsp;|&nbsp; ` +
+            `<strong>Payroll:</strong> ${fmt(pStart)} – ${fmt(pEnd)}`;
+        document.getElementById('cyclePreview').classList.remove('d-none');
+    },
+});
+</script>
 {% endblock %}

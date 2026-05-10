@@ -20,23 +20,28 @@ class GlobalSettingsForm(forms.ModelForm):
             # Scheduling defaults
             "default_lunch_duration_minutes",
             "week_start_day",
-            # Payroll close day
+            # Payroll timing
             "payroll_close_weekday",
             "payroll_close_week",
+            "pay_weekday",
             # Cycle anchors
             "schedule_cycle_start",
             "payroll_cycle_offset_days",
         ]
         widgets = {
-            "overtime_rate_multiplier":     forms.NumberInput(attrs={"class": _INPUT, "step": "0.01"}),
-            "holiday_rate_multiplier":      forms.NumberInput(attrs={"class": _INPUT, "step": "0.01"}),
-            "overtime_threshold_hours":     forms.NumberInput(attrs={"class": _INPUT, "step": "0.01"}),
+            "overtime_rate_multiplier":       forms.NumberInput(attrs={"class": _INPUT, "step": "0.01"}),
+            "holiday_rate_multiplier":        forms.NumberInput(attrs={"class": _INPUT, "step": "0.01"}),
+            "overtime_threshold_hours":       forms.NumberInput(attrs={"class": _INPUT, "step": "0.01"}),
             "default_lunch_duration_minutes": forms.NumberInput(attrs={"class": _INPUT, "min": "0"}),
-            "week_start_day":               forms.Select(attrs={"class": _SELECT}),
-            "payroll_close_weekday":        forms.Select(attrs={"class": _SELECT}),
-            "payroll_close_week":           forms.Select(attrs={"class": _SELECT}),
-            "schedule_cycle_start":         forms.DateInput(attrs={"class": _INPUT, "type": "date"}),
-            "payroll_cycle_offset_days":    forms.NumberInput(attrs={"class": _INPUT, "min": "0"}),
+            "week_start_day":                 forms.Select(attrs={"class": _SELECT, "id": "id_week_start_day"}),
+            "payroll_close_weekday":          forms.Select(attrs={"class": _SELECT}),
+            "payroll_close_week":             forms.Select(attrs={"class": _SELECT}),
+            "pay_weekday":                    forms.Select(attrs={"class": _SELECT}),
+            # type="text" so Flatpickr takes over (not the browser native date picker)
+            "schedule_cycle_start":           forms.DateInput(attrs={"class": _INPUT, "type": "text",
+                                                                     "autocomplete": "off",
+                                                                     "id": "id_schedule_cycle_start"}),
+            "payroll_cycle_offset_days":      forms.NumberInput(attrs={"class": _INPUT, "min": "0"}),
         }
 
 
