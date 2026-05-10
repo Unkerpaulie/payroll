@@ -78,12 +78,12 @@ class CycleCreateView(LoginRequiredMixin, FormView):
         cfg = GlobalSettings.get()
         schedule_start = form.cleaned_data["schedule_start"]
 
-        # If a cycle already exists for this period, open it — never duplicate.
+        # If a cycle already exists for this period, navigate to it — never duplicate.
         existing = PayrollCycle.objects.filter(schedule_start=schedule_start).first()
         if existing:
             messages.info(
                 self.request,
-                f"A payroll cycle for {schedule_start} already exists — opened it for you."
+                f"A payroll cycle for {schedule_start} already exists."
             )
             return redirect(reverse("scheduling:cycle_detail", kwargs={"pk": existing.pk}))
 
@@ -93,13 +93,18 @@ class CycleCreateView(LoginRequiredMixin, FormView):
         payroll_end    = schedule_end   - datetime.timedelta(days=offset)
         pay_date       = self._compute_pay_date(payroll_end, cfg.pay_weekday)
 
+        # If another cycle is currently open, create this one as Pending so
+        # users can build the schedule in advance without closing the open cycle.
+        has_open = PayrollCycle.objects.filter(status=PayrollCycle.Status.OPEN).exists()
+        new_status = PayrollCycle.Status.PENDING if has_open else PayrollCycle.Status.OPEN
+
         cycle = PayrollCycle.objects.create(
             schedule_start=schedule_start,
             schedule_end=schedule_end,
             payroll_start=payroll_start,
             payroll_end=payroll_end,
             pay_date=pay_date,
-            status=PayrollCycle.Status.OPEN,
+            status=new_status,
         )
 
         groups = Group.objects.filter(
@@ -111,7 +116,14 @@ class CycleCreateView(LoginRequiredMixin, FormView):
             Week.objects.create(schedule=sched, week_number=2,
                                 start_date=schedule_start + datetime.timedelta(days=7))
 
-        messages.success(self.request, f"Payroll cycle opened: {cycle}")
+        if new_status == PayrollCycle.Status.PENDING:
+            messages.success(
+                self.request,
+                f"Payroll cycle created as Pending: {cycle}. "
+                f"You can build the schedule now and activate it when the current cycle closes."
+            )
+        else:
+            messages.success(self.request, f"Payroll cycle opened: {cycle}")
         return redirect(reverse("scheduling:cycle_detail", kwargs={"pk": cycle.pk}))
 
 
@@ -126,6 +138,35 @@ class CycleDetailView(LoginRequiredMixin, DetailView):
         return PayrollCycle.objects.prefetch_related(
             "schedules__group", "schedules__weeks"
         )
+
+
+# ── Activate pending cycle ────────────────────────────────────────────────────
+
+class CycleActivateView(LoginRequiredMixin, View):
+    """Promote a Pending cycle to Open.  Guards against activating while another cycle is Open."""
+
+    def post(self, request, pk):
+        cycle = get_object_or_404(PayrollCycle, pk=pk)
+
+        if not cycle.is_pending:
+            messages.error(request, "Only a Pending cycle can be activated.")
+            return redirect(reverse("scheduling:cycle_detail", kwargs={"pk": pk}))
+
+        open_cycles = PayrollCycle.objects.filter(status=PayrollCycle.Status.OPEN)
+        if open_cycles.exists():
+            existing = open_cycles.first()
+            messages.error(
+                request,
+                f"Cannot activate: there is already an open cycle "
+                f"({existing.schedule_start} – {existing.schedule_end}). "
+                f"Close it first."
+            )
+            return redirect(reverse("scheduling:cycle_detail", kwargs={"pk": pk}))
+
+        cycle.status = PayrollCycle.Status.OPEN
+        cycle.save()
+        messages.success(request, f"Payroll cycle activated: {cycle}")
+        return redirect(reverse("scheduling:cycle_detail", kwargs={"pk": pk}))
 
 
 # ── Schedule builder ──────────────────────────────────────────────────────────

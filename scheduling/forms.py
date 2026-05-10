@@ -57,20 +57,11 @@ class CycleCreateForm(forms.Form):
                     "The selected date is not a valid bi-weekly start from the configured cycle anchor."
                 )
 
-        # If a cycle already exists for this exact start date we will redirect
-        # to it in form_valid — that is not an error.  Block only when there is
-        # a *different* open cycle (overlapping periods are not allowed).
-        if not PayrollCycle.objects.filter(schedule_start=date).exists():
-            open_cycles = PayrollCycle.objects.filter(
-                status=PayrollCycle.Status.OPEN
-            ).exclude(schedule_start=date)
-            if open_cycles.exists():
-                existing = open_cycles.first()
-                raise ValidationError(
-                    f"There is already an open payroll cycle "
-                    f"({existing.schedule_start} – {existing.schedule_end}). "
-                    f"Close it before starting a new one."
-                )
+        # Block only true duplicates (same start date already recorded).
+        # A new cycle started while another is open will be created as Pending —
+        # that logic lives in CycleCreateView.form_valid.
+        if PayrollCycle.objects.filter(schedule_start=date).exists():
+            pass  # form_valid will redirect to the existing cycle.
 
         return date
 

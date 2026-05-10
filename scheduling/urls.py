@@ -2,7 +2,7 @@ from django.urls import path
 
 from .views import (
     AdHocShiftCreateView,
-    CycleListView, CycleCreateView, CycleDetailView,
+    CycleListView, CycleCreateView, CycleDetailView, CycleActivateView,
     ScheduleBuilderView,
     ShiftCreateView, ShiftUpdateView, ShiftDeleteView,
 )
@@ -14,6 +14,7 @@ urlpatterns = [
     path("", CycleListView.as_view(), name="cycle_list"),
     path("new/", CycleCreateView.as_view(), name="cycle_create"),
     path("<int:pk>/", CycleDetailView.as_view(), name="cycle_detail"),
+    path("<int:pk>/activate/", CycleActivateView.as_view(), name="cycle_activate"),
 
     # Schedule builder
     path("schedule/<int:schedule_pk>/", ScheduleBuilderView.as_view(), name="builder"),

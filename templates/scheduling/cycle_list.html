@@ -41,6 +41,8 @@
                     <td class="text-center">
                         {% if cycle.status == 'open' %}
                             <span class="badge badge-success">Open</span>
+                        {% elif cycle.status == 'pending' %}
+                            <span class="badge badge-warning text-dark">Pending</span>
                         {% else %}
                             <span class="badge badge-secondary">Closed</span>
                         {% endif %}

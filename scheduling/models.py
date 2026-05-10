@@ -32,6 +32,7 @@ class PayrollCycle(models.Model):
 
     class Status(models.TextChoices):
         OPEN = "open", "Open"
+        PENDING = "pending", "Pending"
         CLOSED = "closed", "Closed"
 
     # Schedule window
@@ -64,6 +65,10 @@ class PayrollCycle(models.Model):
     @property
     def is_open(self):
         return self.status == self.Status.OPEN
+
+    @property
+    def is_pending(self):
+        return self.status == self.Status.PENDING
 
 
 class Schedule(models.Model):

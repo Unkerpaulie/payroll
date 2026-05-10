@@ -20,6 +20,15 @@
         </a>
         {% if cycle.status == 'open' %}
             <span class="badge badge-success badge-pill px-3 py-2">Open</span>
+        {% elif cycle.status == 'pending' %}
+            <span class="badge badge-warning text-dark badge-pill px-3 py-2">Pending</span>
+            <form method="post" action="{% url 'scheduling:cycle_activate' cycle.pk %}" class="d-inline ml-2">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-success"
+                        onclick="return confirm('Activate this cycle? Make sure the current open cycle is closed first.');">
+                    <i class="fas fa-play fa-sm mr-1"></i> Activate Cycle
+                </button>
+            </form>
         {% else %}
             <span class="badge badge-secondary badge-pill px-3 py-2">Closed</span>
         {% endif %}
