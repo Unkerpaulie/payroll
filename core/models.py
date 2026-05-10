@@ -1,15 +1,68 @@
 """
 Core models.
 
-GlobalSettings is a singleton table (enforced by always using pk=1) that
-holds every project-wide configuration value accessible through the admin
-Settings UI: pay multipliers, deduction percentages, lunch defaults, and the
-anchor dates that define the bi-weekly schedule and payroll cycles.
+Deduction       — a named payroll deduction (percentage or fixed amount).
+                  Employees may be individually exempted via DeductionExemption
+                  in the employees app.
+
+GlobalSettings  — singleton table (enforced by always using pk=1) that
+                  holds every project-wide configuration value: pay multipliers,
+                  lunch defaults, and the anchor dates that define the bi-weekly
+                  schedule and payroll cycles.
 """
 
 from django.core.exceptions import ValidationError
 from django.db import models
 
+
+# ── Deduction ─────────────────────────────────────────────────────────────────
+
+class Deduction(models.Model):
+    """
+    A named payroll deduction applied at close-off.
+
+    ``deduction_type`` controls how ``amount`` is interpreted:
+      - PERCENTAGE : amount is treated as a percentage of gross pay (e.g. 10.00 = 10 %)
+      - FIXED      : amount is a flat dollar value deducted regardless of hours
+    """
+
+    class DeductionType(models.TextChoices):
+        PERCENTAGE = "percentage", "Percentage (%)"
+        FIXED = "fixed", "Fixed Amount ($)"
+
+    name = models.CharField(max_length=100, unique=True)
+    deduction_type = models.CharField(
+        max_length=10,
+        choices=DeductionType.choices,
+        default=DeductionType.PERCENTAGE,
+        verbose_name="Type",
+    )
+    amount = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        help_text="Percentage value (e.g. 10.00 = 10 %) or flat dollar amount.",
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Inactive deductions are excluded from payroll calculations.",
+    )
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Deduction"
+        verbose_name_plural = "Deductions"
+
+    def __str__(self):
+        return f"{self.name} ({self.display_amount})"
+
+    @property
+    def display_amount(self):
+        if self.deduction_type == self.DeductionType.PERCENTAGE:
+            return f"{self.amount}%"
+        return f"${self.amount}"
+
+
+# ── GlobalSettings ────────────────────────────────────────────────────────────
 
 class GlobalSettings(models.Model):
     """
@@ -44,14 +97,6 @@ class GlobalSettings(models.Model):
         decimal_places=2,
         default="40.00",
         help_text="Weekly hours above which the overtime rate applies.",
-    )
-
-    # --- Deductions -------------------------------------------------------
-    deduction_percentage = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        default="0.00",
-        help_text="Flat deduction percentage applied to gross pay (e.g. 10.00 for 10%).",
     )
 
     # --- Scheduling defaults ---------------------------------------------

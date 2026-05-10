@@ -1,6 +1,14 @@
 from django.contrib import admin
 
-from .models import GlobalSettings
+from .models import Deduction, GlobalSettings
+
+
+@admin.register(Deduction)
+class DeductionAdmin(admin.ModelAdmin):
+    list_display = ("name", "deduction_type", "display_amount", "is_active")
+    list_filter = ("deduction_type", "is_active")
+    search_fields = ("name",)
+    list_editable = ("is_active",)
 
 
 @admin.register(GlobalSettings)
@@ -16,9 +24,6 @@ class GlobalSettingsAdmin(admin.ModelAdmin):
                 "overtime_threshold_hours",
                 "holiday_rate_multiplier",
             ),
-        }),
-        ("Deductions", {
-            "fields": ("deduction_percentage",),
         }),
         ("Scheduling Defaults", {
             "fields": ("default_lunch_duration_minutes", "week_start_day"),

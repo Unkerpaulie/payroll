@@ -4,8 +4,10 @@ Scheduling domain models.
 PayrollCycle    — the universal bi-weekly cycle (has schedule + payroll date spans).
 Schedule        — one group's schedule for a payroll cycle.
 Week            — one of the two weeks within a schedule (week 1 or week 2).
-ScheduledShift  — a single employee shift on a specific date within a week.
-                  Enforces one shift per employee per date via a unique constraint.
+Day             — a single calendar date within a Week; may be flagged as a holiday.
+ScheduledShift  — a single employee shift on a specific Day.
+                  Enforces one shift per employee per Day (and by extension per date)
+                  via a unique constraint plus cross-group clean() validation.
 """
 
 import datetime
@@ -123,21 +125,67 @@ class Week(models.Model):
         return self.start_date + datetime.timedelta(days=6)
 
 
-class ScheduledShift(models.Model):
+class Day(models.Model):
     """
-    A single planned shift for one employee on one date within a Week.
+    A single calendar date within a Week.
 
-    Conflict rule: an employee may only have ONE shift per calendar date.
-    This is enforced by the unique_together constraint on (week, employee, date)
-    AND by the model's clean() method so that the error surfaces in forms too.
+    ``is_holiday`` flags the day as a public holiday so that the schedule
+    builder and payroll engine can apply the holiday_rate_multiplier from
+    GlobalSettings instead of the standard rate.
 
-    ``include_lunch`` — when True, the default lunch duration (from GlobalSettings)
-    is subtracted from the shift's gross hours when totalling scheduled hours, and
-    clock-in board will generate a lunch_start / lunch_end button pair.
+    ``holiday_name`` is optional descriptive text shown in the schedule UI.
     """
 
     week = models.ForeignKey(
         Week,
+        on_delete=models.CASCADE,
+        related_name="days",
+    )
+    date = models.DateField()
+    is_holiday = models.BooleanField(
+        default=False,
+        help_text="Flag this date as a public holiday.",
+    )
+    holiday_name = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Optional name shown on the schedule (e.g. 'Christmas Day').",
+    )
+
+    class Meta:
+        unique_together = [("week", "date")]
+        ordering = ["date"]
+        verbose_name = "Day"
+        verbose_name_plural = "Days"
+
+    def __str__(self):
+        label = self.date.strftime("%a, %b %d, %Y")
+        if self.is_holiday:
+            suffix = f" – {self.holiday_name}" if self.holiday_name else " [Holiday]"
+            return label + suffix
+        return label
+
+
+class ScheduledShift(models.Model):
+    """
+    A single planned shift for one employee on a specific Day.
+
+    Conflict rule: one shift per employee per calendar date (system-wide).
+      - unique_together = [("employee", "day")] enforces uniqueness at DB level
+        within a single Day object.
+      - clean() catches the cross-group case where two Day objects share the
+        same calendar date (different groups, same cycle).
+
+    ``include_lunch`` — when True, the default lunch duration (from GlobalSettings)
+    is subtracted from gross hours; the clock-in board generates a
+    lunch_start / lunch_end button pair for this shift.
+
+    The shift date is obtained via ``shift.day.date`` — it is not stored again
+    on this model to keep the data normalised.
+    """
+
+    day = models.ForeignKey(
+        Day,
         on_delete=models.CASCADE,
         related_name="shifts",
     )
@@ -146,7 +194,6 @@ class ScheduledShift(models.Model):
         on_delete=models.CASCADE,
         related_name="scheduled_shifts",
     )
-    date = models.DateField()
     start_time = models.TimeField()
     end_time = models.TimeField()
     include_lunch = models.BooleanField(
@@ -163,29 +210,35 @@ class ScheduledShift(models.Model):
     )
 
     class Meta:
-        # Database-level enforcement of one shift per employee per date.
-        unique_together = [("employee", "date")]
-        ordering = ["date", "start_time"]
+        # DB-level: one shift per employee per Day object.
+        unique_together = [("employee", "day")]
+        ordering = ["day__date", "start_time"]
         verbose_name = "Scheduled Shift"
         verbose_name_plural = "Scheduled Shifts"
 
     def __str__(self):
+        date = self.day.date
         return (
-            f"{self.employee} on {self.date} "
+            f"{self.employee} on {date} "
             f"{self.start_time.strftime('%H:%M')}–{self.end_time.strftime('%H:%M')}"
         )
 
     def clean(self):
         """
-        Validate that this employee has no other shift on the same date,
-        excluding the current instance when editing.
+        Cross-group validation: ensure this employee has no shift on the same
+        calendar date in any other group's schedule.
         """
-        qs = ScheduledShift.objects.filter(employee=self.employee, date=self.date)
+        if not self.day_id:
+            return
+        qs = ScheduledShift.objects.filter(
+            employee=self.employee,
+            day__date=self.day.date,
+        )
         if self.pk:
             qs = qs.exclude(pk=self.pk)
         if qs.exists():
             raise ValidationError(
-                f"{self.employee.full_name} already has a shift scheduled on {self.date}."
+                f"{self.employee.full_name} already has a shift scheduled on {self.day.date}."
             )
 
     def gross_hours(self, lunch_minutes=None):
@@ -194,8 +247,9 @@ class ScheduledShift(models.Model):
         If ``include_lunch`` is True, subtract ``lunch_minutes``
         (falls back to GlobalSettings.default_lunch_duration_minutes).
         """
-        start_dt = datetime.datetime.combine(self.date, self.start_time)
-        end_dt = datetime.datetime.combine(self.date, self.end_time)
+        date = self.day.date
+        start_dt = datetime.datetime.combine(date, self.start_time)
+        end_dt = datetime.datetime.combine(date, self.end_time)
         total_minutes = (end_dt - start_dt).seconds // 60
         if self.include_lunch:
             if lunch_minutes is None:

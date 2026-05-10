@@ -44,8 +44,9 @@ class HomeView(LoginRequiredMixin, TemplateView):
         # ── Attendance queries for today ─────────────────────────────────
         todays_actuals = (
             ActualShift.objects
-            .filter(scheduled_shift__date=today)
+            .filter(scheduled_shift__day__date=today)
             .select_related(
+                "scheduled_shift__day",
                 "scheduled_shift__employee",
                 "scheduled_shift__employee__group",
             )
@@ -127,9 +128,9 @@ def _compute_live_kpis():
 
     todays_actuals = (
         ActualShift.objects
-        .filter(scheduled_shift__date=today)
+        .filter(scheduled_shift__day__date=today)
         .select_related(
-            "scheduled_shift",
+            "scheduled_shift__day",
             "scheduled_shift__employee",
         )
     )

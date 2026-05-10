@@ -48,12 +48,10 @@
                         </label>
                         {{ form.overtime_threshold_hours }}
                     </div>
-                    <div class="form-group mb-0">
-                        <label for="{{ form.deduction_percentage.id_for_label }}">
-                            Deduction Percentage
-                            <small class="text-muted">(e.g. 10 = 10% off gross pay)</small>
-                        </label>
-                        {{ form.deduction_percentage }}
+                    <div class="alert alert-info mb-0 small">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Deductions are managed individually under <strong>Admin → Deductions</strong>.
+                        Each employee's exemptions are configured on their employee record.
                     </div>
                 </div>
             </div>

@@ -1,9 +1,10 @@
 """
 Employee domain models.
 
-Group       — a named collection of employees (department / employee class).
-Employee    — the core employee record including pay rate and group membership.
-Unavailability — date-bounded periods during which an employee must not be scheduled.
+Group               — a named collection of employees (department / employee class).
+Employee            — the core employee record including pay rate and group membership.
+Unavailability      — date-bounded periods during which an employee must not be scheduled.
+DeductionExemption  — records that an employee is exempt from a specific Deduction.
 """
 
 from django.db import models
@@ -106,3 +107,30 @@ class Unavailability(models.Model):
 
     def __str__(self):
         return f"{self.employee} unavailable {self.start_date} – {self.end_date}"
+
+
+class DeductionExemption(models.Model):
+    """
+    Records that a specific employee is exempt from a named Deduction.
+    At payroll close-off, any Deduction with a matching exemption for an
+    employee will be skipped when calculating that employee's net pay.
+    """
+
+    employee = models.ForeignKey(
+        Employee,
+        on_delete=models.CASCADE,
+        related_name="deduction_exemptions",
+    )
+    deduction = models.ForeignKey(
+        "core.Deduction",
+        on_delete=models.CASCADE,
+        related_name="exemptions",
+    )
+
+    class Meta:
+        unique_together = [("employee", "deduction")]
+        verbose_name = "Deduction Exemption"
+        verbose_name_plural = "Deduction Exemptions"
+
+    def __str__(self):
+        return f"{self.employee} — exempt from {self.deduction}"

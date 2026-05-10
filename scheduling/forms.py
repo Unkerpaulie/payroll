@@ -13,7 +13,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 
 from employees.models import Employee
-from .models import PayrollCycle, ScheduledShift, Week
+from .models import Day, PayrollCycle, ScheduledShift, Week
 
 
 class AdHocShiftForm(forms.Form):
@@ -82,7 +82,7 @@ class AdHocShiftForm(forms.Form):
             )
 
         # Check the employee isn't already scheduled that day.
-        if employee and ScheduledShift.objects.filter(employee=employee, date=date).exists():
+        if employee and ScheduledShift.objects.filter(employee=employee, day__date=date).exists():
             raise ValidationError(
                 f"{employee.full_name} already has a shift on {date}."
             )
@@ -128,10 +128,12 @@ class AdHocShiftForm(forms.Form):
                 "No schedule weeks found for this cycle. Build a schedule first."
             )
 
+        # Get or create the Day object for this date within the located week.
+        day, _ = Day.objects.get_or_create(week=week, date=date)
+
         return ScheduledShift.objects.create(
-            week=week,
+            day=day,
             employee=employee,
-            date=date,
             start_time=data["start_time"],
             end_time=data["end_time"],
             include_lunch=data.get("include_lunch", False),

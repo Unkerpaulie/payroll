@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import PayrollCycle, Schedule, ScheduledShift, Week
+from .models import Day, PayrollCycle, Schedule, ScheduledShift, Week
 
 
 class ScheduleInline(admin.TabularInline):
@@ -31,21 +31,39 @@ class ScheduleAdmin(admin.ModelAdmin):
     inlines = [WeekInline]
 
 
-class ScheduledShiftInline(admin.TabularInline):
-    model = ScheduledShift
+class DayInline(admin.TabularInline):
+    model = Day
     extra = 0
-    fields = ("employee", "date", "start_time", "end_time", "include_lunch")
+    fields = ("date", "is_holiday", "holiday_name")
+    show_change_link = True
 
 
 @admin.register(Week)
 class WeekAdmin(admin.ModelAdmin):
     list_display = ("schedule", "week_number", "start_date", "end_date")
+    inlines = [DayInline]
+
+
+class ScheduledShiftInline(admin.TabularInline):
+    model = ScheduledShift
+    extra = 0
+    fields = ("employee", "start_time", "end_time", "include_lunch", "is_adhoc")
+
+
+@admin.register(Day)
+class DayAdmin(admin.ModelAdmin):
+    list_display = ("date", "week", "is_holiday", "holiday_name")
+    list_filter = ("is_holiday", "week__schedule__cycle", "week__schedule__group")
+    date_hierarchy = "date"
     inlines = [ScheduledShiftInline]
 
 
 @admin.register(ScheduledShift)
 class ScheduledShiftAdmin(admin.ModelAdmin):
-    list_display = ("employee", "date", "start_time", "end_time", "include_lunch")
-    list_filter = ("week__schedule__cycle", "week__schedule__group")
+    list_display = ("employee", "get_date", "start_time", "end_time", "include_lunch", "is_adhoc")
+    list_filter = ("day__week__schedule__cycle", "day__week__schedule__group")
     search_fields = ("employee__last_name", "employee__first_name")
-    date_hierarchy = "date"
+
+    @admin.display(description="Date", ordering="day__date")
+    def get_date(self, obj):
+        return obj.day.date

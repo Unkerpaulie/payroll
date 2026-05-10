@@ -17,7 +17,6 @@ class GlobalSettingsForm(forms.ModelForm):
             "overtime_rate_multiplier",
             "holiday_rate_multiplier",
             "overtime_threshold_hours",
-            "deduction_percentage",
             # Scheduling defaults
             "default_lunch_duration_minutes",
             "week_start_day",
@@ -32,7 +31,6 @@ class GlobalSettingsForm(forms.ModelForm):
             "overtime_rate_multiplier":     forms.NumberInput(attrs={"class": _INPUT, "step": "0.01"}),
             "holiday_rate_multiplier":      forms.NumberInput(attrs={"class": _INPUT, "step": "0.01"}),
             "overtime_threshold_hours":     forms.NumberInput(attrs={"class": _INPUT, "step": "0.01"}),
-            "deduction_percentage":         forms.NumberInput(attrs={"class": _INPUT, "step": "0.01"}),
             "default_lunch_duration_minutes": forms.NumberInput(attrs={"class": _INPUT, "min": "0"}),
             "week_start_day":               forms.Select(attrs={"class": _SELECT}),
             "payroll_close_weekday":        forms.Select(attrs={"class": _SELECT}),

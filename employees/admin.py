@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Employee, Group, Unavailability
+from .models import DeductionExemption, Employee, Group, Unavailability
 
 
 @admin.register(Group)
@@ -15,12 +15,20 @@ class UnavailabilityInline(admin.TabularInline):
     fields = ("start_date", "end_date", "reason")
 
 
+class DeductionExemptionInline(admin.TabularInline):
+    model = DeductionExemption
+    extra = 1
+    fields = ("deduction",)
+    verbose_name = "Deduction Exemption"
+    verbose_name_plural = "Deduction Exemptions"
+
+
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
     list_display = ("last_name", "first_name", "group", "pay_rate", "status", "hire_date")
     list_filter = ("status", "group")
     search_fields = ("last_name", "first_name", "email")
-    inlines = [UnavailabilityInline]
+    inlines = [UnavailabilityInline, DeductionExemptionInline]
     fieldsets = (
         ("Personal", {"fields": ("first_name", "last_name", "email", "phone")}),
         ("Employment", {"fields": ("group", "pay_rate", "status", "hire_date", "notes")}),
@@ -31,4 +39,11 @@ class EmployeeAdmin(admin.ModelAdmin):
 class UnavailabilityAdmin(admin.ModelAdmin):
     list_display = ("employee", "start_date", "end_date", "reason")
     list_filter = ("employee",)
+    search_fields = ("employee__last_name", "employee__first_name")
+
+
+@admin.register(DeductionExemption)
+class DeductionExemptionAdmin(admin.ModelAdmin):
+    list_display = ("employee", "deduction")
+    list_filter = ("deduction",)
     search_fields = ("employee__last_name", "employee__first_name")
