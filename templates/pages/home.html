@@ -171,8 +171,12 @@
                         {{ adhoc_form.employee }}
                     </div>
                     <div class="form-group">
-                        <label for="{{ adhoc_form.date.id_for_label }}">Date</label>
-                        {{ adhoc_form.date }}
+                        <label>Date</label>
+                        <div class="form-control-plaintext font-weight-bold">
+                            <i class="fas fa-calendar-day mr-1 text-muted"></i>
+                            Today &mdash; {{ today|date:"l, M d, Y" }}
+                        </div>
+                        <small class="form-text text-muted">Ad-hoc shifts can only be added for today.</small>
                     </div>
                     <div class="row">
                         <div class="col-6">

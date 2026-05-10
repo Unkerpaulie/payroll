@@ -105,13 +105,14 @@ class ShiftForm(forms.Form):
 
 class AdHocShiftForm(forms.Form):
     """
-    Creates a ScheduledShift with is_adhoc=True inside the Week of the
-    currently open PayrollCycle that contains the selected date.
+    Creates a ScheduledShift with is_adhoc=True for TODAY inside the currently
+    open PayrollCycle.
 
-    Validation ensures:
+    The date is always today — it is not a form field and cannot be submitted
+    or overridden by the user.  Validation ensures:
       - There is an open cycle.
-      - The selected date falls within that cycle's schedule window.
-      - The employee is not already scheduled on that date.
+      - Today falls within that cycle's schedule window.
+      - The employee is not already scheduled today.
       - end_time is after start_time.
     """
 
@@ -122,11 +123,7 @@ class AdHocShiftForm(forms.Form):
         label="Employee",
         widget=forms.Select(attrs={"class": "form-control"}),
     )
-    date = forms.DateField(
-        initial=datetime.date.today,
-        label="Date",
-        widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}),
-    )
+    # No 'date' field — always today; set in clean() and unavailable to the user.
     start_time = forms.TimeField(
         label="Start Time",
         widget=forms.TimeInput(attrs={"class": "form-control", "type": "time"}),
@@ -144,17 +141,17 @@ class AdHocShiftForm(forms.Form):
     def clean(self):
         cleaned = super().clean()
         employee = cleaned.get("employee")
-        date = cleaned.get("date")
         start_time = cleaned.get("start_time")
         end_time = cleaned.get("end_time")
 
         if start_time and end_time and end_time <= start_time:
             raise ValidationError("End time must be after start time.")
 
-        if not date:
-            return cleaned
+        # Date is always today — not supplied by the user.
+        date = datetime.date.today()
+        cleaned["date"] = date
 
-        # Ensure an open cycle exists and the date falls within it.
+        # Ensure an open cycle exists and today falls within it.
         try:
             cycle = PayrollCycle.objects.get(status=PayrollCycle.Status.OPEN)
         except PayrollCycle.DoesNotExist:
@@ -164,14 +161,15 @@ class AdHocShiftForm(forms.Form):
 
         if not (cycle.schedule_start <= date <= cycle.schedule_end):
             raise ValidationError(
-                f"The selected date must fall within the current cycle "
-                f"({cycle.schedule_start} – {cycle.schedule_end})."
+                f"Today ({date}) is not within the current open cycle "
+                f"({cycle.schedule_start} – {cycle.schedule_end}). "
+                f"Ad-hoc shifts can only be added for today."
             )
 
-        # Check the employee isn't already scheduled that day.
+        # Check the employee isn't already scheduled today.
         if employee and ScheduledShift.objects.filter(employee=employee, day__date=date).exists():
             raise ValidationError(
-                f"{employee.full_name} already has a shift on {date}."
+                f"{employee.full_name} already has a shift scheduled for today."
             )
 
         cleaned["_cycle"] = cycle
