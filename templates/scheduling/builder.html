@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ schedule.group.name }} – Week {{ week_num }} Builder – PayrollPro{% endblock %}
+
+{% block page_header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h1 class="h3 mb-0 text-gray-800">{{ schedule.group.name }}</h1>
+        <small class="text-muted">
+            Schedule Builder &ndash;
+            {{ week.start_date|date:"M d" }} &ndash; {{ week.end_date|date:"M d, Y" }}
+        </small>
+    </div>
+    <div>
+        <a href="{% url 'scheduling:cycle_detail' schedule.cycle.pk %}" class="btn btn-sm btn-secondary mr-2">
+            <i class="fas fa-arrow-left fa-sm"></i> Back to Cycle
+        </a>
+        {% if week_num == 1 %}
+        <a href="?week=2" class="btn btn-sm btn-outline-primary">Week 2 <i class="fas fa-arrow-right fa-sm"></i></a>
+        {% else %}
+        <a href="?week=1" class="btn btn-sm btn-outline-primary"><i class="fas fa-arrow-left fa-sm"></i> Week 1</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- Week toggle pills -->
+<div class="mb-3">
+    <a href="?week=1" class="btn btn-sm {% if week_num == 1 %}btn-primary{% else %}btn-outline-primary{% endif %} mr-1">
+        Week 1
+    </a>
+    <a href="?week=2" class="btn btn-sm {% if week_num == 2 %}btn-primary{% else %}btn-outline-primary{% endif %}">
+        Week 2
+    </a>
+</div>
+
+<!-- Schedule Grid -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-table mr-2"></i>Week {{ week_num }} Schedule
+        </h6>
+        <small class="text-muted">Click <i class="fas fa-plus-circle text-primary"></i> to add a shift</small>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+        <table class="table table-bordered mb-0" id="scheduleGrid">
+            <thead class="thead-light">
+                <tr>
+                    <th style="width:160px">Employee</th>
+                    {% for date in dates %}
+                    <th class="text-center" style="min-width:110px">
+                        <div class="font-weight-bold">{{ date|date:"D" }}</div>
+                        <small class="text-muted">{{ date|date:"M d" }}</small>
+                    </th>
+                    {% endfor %}
+                    <th class="text-center" style="width:80px">Hrs</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in employee_rows %}
+                <tr id="emp-row-{{ row.employee.pk }}">
+                    <td class="align-middle font-weight-bold small">{{ row.employee.full_name }}</td>
+                    {% for cell in row.days %}
+                    <td class="text-center align-middle p-1"
+                        style="background: {% if cell.shift %}#eaf4fb{% endif %}">
+                        {% if cell.shift %}
+                        <div class="shift-card" id="shift-card-{{ cell.shift.pk }}">
+                            <div class="small font-weight-bold text-primary">
+                                {{ cell.shift.start_time|time:"H:i" }}–{{ cell.shift.end_time|time:"H:i" }}
+                            </div>
+                            {% if cell.shift.include_lunch %}
+                            <div class="small text-muted"><i class="fas fa-utensils"></i> Lunch</div>
+                            {% endif %}
+                            <button class="btn btn-link btn-sm text-danger p-0 btn-del-shift"
+                                    data-id="{{ cell.shift.pk }}"
+                                    data-employee="{{ row.employee.pk }}"
+                                    data-date="{{ cell.date|date:'Y-m-d' }}"
+                                    data-hours="{{ cell.shift.gross_hours }}"
+                                    data-url="{% url 'scheduling:shift_delete' cell.shift.pk %}">
+                                <i class="fas fa-times-circle fa-sm"></i>
+                            </button>
+                        </div>
+                        {% else %}
+                        <button class="btn btn-link btn-sm text-primary p-0 btn-add-shift"
+                                data-employee-id="{{ row.employee.pk }}"
+                                data-employee-name="{{ row.employee.full_name }}"
+                                data-date="{{ cell.date|date:'Y-m-d' }}"
+                                data-date-display="{{ cell.date|date:'D, M d' }}"
+                                data-week-pk="{{ week.pk }}">
+                            <i class="fas fa-plus-circle fa-lg"></i>
+                        </button>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                    <td class="text-center align-middle font-weight-bold" id="hours-{{ row.employee.pk }}">
+                        {{ row.total_hours|floatformat:1 }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="{{ dates|length|add:2 }}" class="text-center text-muted py-4">
+                        No active employees in this group.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add Shift Modal -->
+<div class="modal fade" id="addShiftModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-clock mr-2"></i>Add Shift
+                    <small id="modalSubtitle" class="font-weight-normal ml-1"></small>
+                </h5>
+                <button class="close text-white" type="button" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="shift-errors" class="alert alert-danger d-none"></div>
+                <input type="hidden" id="modal_week_pk">
+                <input type="hidden" id="modal_employee_id">
+                <input type="hidden" id="modal_date">
+                <div class="form-group">
+                    <label class="font-weight-bold">Employee</label>
+                    <p id="modal_employee_name" class="mb-0 form-control-plaintext font-weight-bold text-primary"></p>
+                </div>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="form-group">
+                            <label>Start Time <span class="text-danger">*</span></label>
+                            <input type="time" class="form-control" id="modal_start_time">
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="form-group">
+                            <label>End Time <span class="text-danger">*</span></label>
+                            <input type="time" class="form-control" id="modal_end_time">
+                        </div>
+                    </div>
+                </div>
+                <div class="custom-control custom-checkbox mt-1">
+                    <input type="checkbox" class="custom-control-input" id="modal_include_lunch">
+                    <label class="custom-control-label" for="modal_include_lunch">Include Lunch Break</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" id="saveShift">
+                    <i class="fas fa-plus mr-1"></i>Add Shift
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+const SHIFT_CREATE_URL = "{% url 'scheduling:shift_create' %}";
+
+// ── Open modal ─────────────────────────────────────────────────────────────
+document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.btn-add-shift');
+    if (!btn) return;
+    document.getElementById('modal_week_pk').value = btn.dataset.weekPk;
+    document.getElementById('modal_employee_id').value = btn.dataset.employeeId;
+    document.getElementById('modal_date').value = btn.dataset.date;
+    document.getElementById('modal_employee_name').textContent = btn.dataset.employeeName;
+    document.getElementById('modalSubtitle').textContent = '– ' + btn.dataset.dateDisplay;
+    document.getElementById('modal_start_time').value = '';
+    document.getElementById('modal_end_time').value = '';
+    document.getElementById('modal_include_lunch').checked = false;
+    document.getElementById('shift-errors').classList.add('d-none');
+    $('#addShiftModal').modal('show');
+});
+
+// ── Save shift ─────────────────────────────────────────────────────────────
+document.getElementById('saveShift').addEventListener('click', function () {
+    const errBox = document.getElementById('shift-errors');
+    errBox.classList.add('d-none');
+    const fd = new FormData();
+    fd.append('csrfmiddlewaretoken', CSRF);
+    fd.append('week_pk',    document.getElementById('modal_week_pk').value);
+    fd.append('date',       document.getElementById('modal_date').value);
+    fd.append('employee',   document.getElementById('modal_employee_id').value);
+    fd.append('start_time', document.getElementById('modal_start_time').value);
+    fd.append('end_time',   document.getElementById('modal_end_time').value);
+    if (document.getElementById('modal_include_lunch').checked) fd.append('include_lunch', 'on');
+
+    fetch(SHIFT_CREATE_URL, { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.ok) {
+                const msgs = data.errors
+                    ? Object.values(data.errors).flat().join(' ')
+                    : (data.error || 'Unknown error');
+                errBox.textContent = msgs;
+                errBox.classList.remove('d-none');
+                return;
+            }
+            const empId = data.employee_id;
+            const date  = document.getElementById('modal_date').value;
+            const addBtn = document.querySelector(
+                `.btn-add-shift[data-employee-id="${empId}"][data-date="${date}"]`
+            );
+            if (addBtn) {
+                const cell = addBtn.closest('td');
+                cell.style.background = '#eaf4fb';
+                const lunchHtml = data.include_lunch
+                    ? '<div class="small text-muted"><i class="fas fa-utensils"></i> Lunch</div>' : '';
+                cell.innerHTML = `
+                <div class="shift-card" id="shift-card-${data.shift_id}">
+                    <div class="small font-weight-bold text-primary">${data.start_time}–${data.end_time}</div>
+                    ${lunchHtml}
+                    <button class="btn btn-link btn-sm text-danger p-0 btn-del-shift"
+                            data-id="${data.shift_id}" data-employee="${empId}"
+                            data-date="${date}" data-hours="${data.hours}"
+                            data-url="${data.delete_url}">
+                        <i class="fas fa-times-circle fa-sm"></i></button>
+                </div>`;
+            }
+            updateHours(empId, data.hours, 'add');
+            $('#addShiftModal').modal('hide');
+        });
+});
+
+// ── Delete shift ───────────────────────────────────────────────────────────
+document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.btn-del-shift');
+    if (!btn) return;
+    if (!confirm('Remove this shift?')) return;
+    fetch(btn.dataset.url, { method: 'POST', headers: { 'X-CSRFToken': CSRF } })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.ok) return;
+            const card = document.getElementById(`shift-card-${btn.dataset.id}`);
+            if (!card) return;
+            const cell  = card.closest('td');
+            const empId = btn.dataset.employee;
+            const date  = btn.dataset.date;
+            const empName = cell.closest('tr').querySelector('td').textContent.trim();
+            const weekPk  = '{{ week.pk }}';
+            cell.style.background = '';
+            cell.innerHTML = `
+            <button class="btn btn-link btn-sm text-primary p-0 btn-add-shift"
+                    data-employee-id="${empId}" data-employee-name="${empName}"
+                    data-date="${date}" data-date-display="${formatDateDisplay(date)}"
+                    data-week-pk="${weekPk}">
+                <i class="fas fa-plus-circle fa-lg"></i></button>`;
+            updateHours(empId, data.hours, 'remove');
+        });
+});
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function updateHours(empId, delta, direction) {
+    const cell = document.getElementById(`hours-${empId}`);
+    if (!cell) return;
+    let current = parseFloat(cell.textContent) || 0;
+    cell.textContent = (direction === 'add' ? current + delta : current - delta).toFixed(1);
+}
+function formatDateDisplay(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+</script>
+{% endblock %}

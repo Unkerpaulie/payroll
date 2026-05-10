@@ -50,10 +50,10 @@
         <div id="collapseScheduling" class="collapse {% if request.resolver_match.app_name == 'scheduling' %}show{% endif %}"
             data-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
-                <a class="collapse-item" href="#">Current Cycle</a>
-                <a class="collapse-item" href="#">New Cycle</a>
-                <a class="collapse-item" href="#">Build Schedule</a>
-                <a class="collapse-item" href="#">Print Schedule</a>
+                <a class="collapse-item {% if request.resolver_match.url_name == 'cycle_list' %}active{% endif %}"
+                   href="{% url 'scheduling:cycle_list' %}">All Cycles</a>
+                <a class="collapse-item {% if request.resolver_match.url_name == 'cycle_create' %}active{% endif %}"
+                   href="{% url 'scheduling:cycle_create' %}">New Cycle</a>
             </div>
         </div>
     </li>

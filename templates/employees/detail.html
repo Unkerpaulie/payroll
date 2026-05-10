@@ -59,8 +59,55 @@
         </div>
     </div>
 
-    <!-- Unavailability card -->
+    <!-- Deduction Exemptions card -->
     <div class="col-lg-8 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3 d-flex align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-shield-alt mr-2"></i>Deduction Exemptions</h6>
+                {% if available_deductions %}
+                <button class="btn btn-sm btn-primary" data-toggle="modal" data-target="#addExemptionModal">
+                    <i class="fas fa-plus fa-sm"></i> Add Exemption
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0" id="exemptionTable">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Deduction</th><th>Amount</th><th class="text-center">Remove</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ex in employee.deduction_exemptions.all %}
+                        <tr id="ex-row-{{ ex.pk }}">
+                            <td class="font-weight-bold">{{ ex.deduction.name }}</td>
+                            <td>{{ ex.deduction.display_amount }}</td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-danger btn-del-ex"
+                                        data-id="{{ ex.pk }}"
+                                        data-deduction-id="{{ ex.deduction.pk }}"
+                                        data-deduction-name="{{ ex.deduction.name }}"
+                                        data-display-amount="{{ ex.deduction.display_amount }}"
+                                        data-url="{% url 'employees:exemption_delete' ex.pk %}">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr id="ex-empty-row">
+                            <td colspan="3" class="text-center text-muted py-3">This employee has no deduction exemptions.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Unavailability card — full width, ongoing history -->
+<div class="row">
+    <div class="col-12 mb-4">
         <div class="card shadow">
             <div class="card-header py-3 d-flex align-items-center justify-content-between">
                 <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-calendar-times mr-2"></i>Unavailability Periods</h6>
@@ -96,6 +143,36 @@
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Exemption Modal -->
+<div class="modal fade" id="addExemptionModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-shield-alt mr-2"></i>Add Deduction Exemption</h5>
+                <button class="close text-white" type="button" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="ex-errors" class="alert alert-danger d-none"></div>
+                <p class="small text-muted">Select a deduction that <strong>{{ employee.first_name }}</strong> should be exempt from:</p>
+                <div class="form-group mb-0">
+                    <label>Deduction <span class="text-danger">*</span></label>
+                    <select id="exemption_deduction_id" class="form-control">
+                        {% for d in available_deductions %}
+                        <option value="{{ d.pk }}" data-name="{{ d.name }}" data-amount="{{ d.display_amount }}">
+                            {{ d.name }} ({{ d.display_amount }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" id="saveExemption">Save</button>
             </div>
         </div>
     </div>
@@ -204,6 +281,90 @@ document.querySelector('#unavailTable').addEventListener('click', function (e) {
     fetch(btn.dataset.url, { method: 'POST', headers: { 'X-CSRFToken': CSRF } })
         .then(r => r.json())
         .then(d => { if (d.ok) document.getElementById(`unav-row-${btn.dataset.id}`).remove(); });
+});
+
+// ── Exemptions ─────────────────────────────────────────────────────────────
+const addExemptUrl = "{% url 'employees:exemption_create' employee.pk %}";
+
+document.getElementById('saveExemption').addEventListener('click', function () {
+    const errBox = document.getElementById('ex-errors');
+    errBox.classList.add('d-none');
+    const sel = document.getElementById('exemption_deduction_id');
+    const deductionId = sel.value;
+    const fd = new FormData();
+    fd.append('csrfmiddlewaretoken', CSRF);
+    fd.append('deduction_id', deductionId);
+    fetch(addExemptUrl, { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                // Remove empty-row if present
+                const emptyRow = document.getElementById('ex-empty-row');
+                if (emptyRow) emptyRow.remove();
+                // Build delete URL
+                const delUrl = "{% url 'employees:exemption_delete' 0 %}".replace('/0/', `/${data.id}/`);
+                // Add row to table
+                const row = document.createElement('tr');
+                row.id = `ex-row-${data.id}`;
+                row.innerHTML = `
+                    <td class="font-weight-bold">${data.deduction_name}</td>
+                    <td>${data.display_amount}</td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-danger btn-del-ex"
+                                data-id="${data.id}"
+                                data-deduction-id="${data.deduction_id}"
+                                data-deduction-name="${data.deduction_name}"
+                                data-display-amount="${data.display_amount}"
+                                data-url="${delUrl}">
+                            <i class="fas fa-times"></i></button></td>`;
+                document.querySelector('#exemptionTable tbody').appendChild(row);
+                // Remove that option from the dropdown
+                const opt = sel.querySelector(`option[value="${data.deduction_id}"]`);
+                if (opt) opt.remove();
+                // Hide button if no more options
+                if (sel.options.length === 0) {
+                    document.querySelector('[data-target="#addExemptionModal"]') &&
+                        document.querySelector('[data-target="#addExemptionModal"]').classList.add('d-none');
+                }
+                $('#addExemptionModal').modal('hide');
+            } else {
+                errBox.textContent = data.error || 'An error occurred.';
+                errBox.classList.remove('d-none');
+            }
+        });
+});
+
+document.querySelector('#exemptionTable').addEventListener('click', function (e) {
+    const btn = e.target.closest('.btn-del-ex');
+    if (!btn) return;
+    if (!confirm(`Remove exemption for "${btn.dataset.deductionName}"?`)) return;
+    fetch(btn.dataset.url, { method: 'POST', headers: { 'X-CSRFToken': CSRF } })
+        .then(r => r.json())
+        .then(d => {
+            if (d.ok) {
+                document.getElementById(`ex-row-${btn.dataset.id}`).remove();
+                // Add the deduction back to the dropdown
+                const sel = document.getElementById('exemption_deduction_id');
+                if (sel) {
+                    const opt = document.createElement('option');
+                    opt.value = d.deduction_id;
+                    opt.dataset.name = d.deduction_name;
+                    opt.dataset.amount = d.display_amount;
+                    opt.textContent = `${d.deduction_name} (${d.display_amount})`;
+                    sel.appendChild(opt);
+                    // Show the Add Exemption button again if it was hidden
+                    const addBtn = document.querySelector('[data-target="#addExemptionModal"]');
+                    if (addBtn) addBtn.classList.remove('d-none');
+                }
+                // Restore empty row if table is now empty
+                if (document.querySelectorAll('#exemptionTable tbody tr').length === 0) {
+                    const row = document.createElement('tr');
+                    row.id = 'ex-empty-row';
+                    row.innerHTML = '<td colspan="3" class="text-center text-muted py-3">This employee has no deduction exemptions.</td>';
+                    document.querySelector('#exemptionTable tbody').appendChild(row);
+                }
+            }
+        });
 });
 </script>
 {% endblock %}

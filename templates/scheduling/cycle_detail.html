@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Cycle {{ cycle.schedule_start|date:"M d" }}–{{ cycle.schedule_end|date:"M d, Y" }} – PayrollPro{% endblock %}
+
+{% block page_header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <div>
+        <h1 class="h3 mb-0 text-gray-800">
+            Cycle: {{ cycle.schedule_start|date:"M d" }} &ndash; {{ cycle.schedule_end|date:"M d, Y" }}
+        </h1>
+        <small class="text-muted">
+            Payroll: {{ cycle.payroll_start|date:"M d" }} &ndash; {{ cycle.payroll_end|date:"M d, Y" }}
+            &nbsp;|&nbsp; Pay Date: <strong>{{ cycle.pay_date|date:"M d, Y" }}</strong>
+        </small>
+    </div>
+    <div>
+        <a href="{% url 'scheduling:cycle_list' %}" class="btn btn-sm btn-secondary mr-1">
+            <i class="fas fa-arrow-left fa-sm"></i> All Cycles
+        </a>
+        {% if cycle.status == 'open' %}
+            <span class="badge badge-success badge-pill px-3 py-2">Open</span>
+        {% else %}
+            <span class="badge badge-secondary badge-pill px-3 py-2">Closed</span>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- Cycle summary cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Schedule Window</div>
+                <div class="h6 mb-0 font-weight-bold text-gray-800">
+                    {{ cycle.schedule_start|date:"M d" }} – {{ cycle.schedule_end|date:"M d, Y" }}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Payroll Window</div>
+                <div class="h6 mb-0 font-weight-bold text-gray-800">
+                    {{ cycle.payroll_start|date:"M d" }} – {{ cycle.payroll_end|date:"M d, Y" }}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Pay Date</div>
+                <div class="h6 mb-0 font-weight-bold text-gray-800">{{ cycle.pay_date|date:"M d, Y" }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Schedules per group -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-layer-group mr-2"></i>Group Schedules
+        </h6>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="thead-light">
+                <tr>
+                    <th>Group</th>
+                    <th>Week 1</th>
+                    <th>Week 2</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for schedule in cycle.schedules.all %}
+                {% with weeks=schedule.weeks.all %}
+                <tr>
+                    <td class="font-weight-bold align-middle">
+                        <i class="fas fa-users mr-1 text-muted"></i> {{ schedule.group.name }}
+                    </td>
+                    <td class="align-middle">
+                        {% for w in weeks %}{% if w.week_number == 1 %}
+                            {{ w.start_date|date:"M d" }} – {{ w.start_date|date:"M d"|add:"" }}
+                            <small class="text-muted">({{ w.start_date|date:"M d" }} &ndash; {{ w.end_date|date:"M d, Y" }})</small>
+                        {% endif %}{% endfor %}
+                    </td>
+                    <td class="align-middle">
+                        {% for w in weeks %}{% if w.week_number == 2 %}
+                            <small class="text-muted">({{ w.start_date|date:"M d" }} &ndash; {{ w.end_date|date:"M d, Y" }})</small>
+                        {% endif %}{% endfor %}
+                    </td>
+                    <td class="text-center align-middle">
+                        <a href="{% url 'scheduling:builder' schedule.pk %}?week=1"
+                           class="btn btn-sm btn-primary mr-1">
+                            <i class="fas fa-edit fa-sm"></i> Build Week 1
+                        </a>
+                        <a href="{% url 'scheduling:builder' schedule.pk %}?week=2"
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-edit fa-sm"></i> Build Week 2
+                        </a>
+                    </td>
+                </tr>
+                {% endwith %}
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-4">
+                        No schedules found. Ensure groups have active employees.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

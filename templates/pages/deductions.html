@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Deductions – PayrollPro{% endblock %}
+
+{% block page_header %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Payroll Deductions</h1>
+    <div>
+        <a href="{% url 'core:settings' %}" class="btn btn-sm btn-secondary mr-2">
+            <i class="fas fa-arrow-left fa-sm"></i> Back to Settings
+        </a>
+        <button class="btn btn-sm btn-primary shadow-sm" id="btnAddDeduction">
+            <i class="fas fa-plus fa-sm text-white-50"></i> Add Deduction
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">All Deductions</h6>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-bordered table-hover mb-0" id="deductionsTable">
+            <thead class="thead-light">
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Amount</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in deductions %}
+                <tr id="ded-row-{{ d.pk }}">
+                    <td class="font-weight-bold">{{ d.name }}</td>
+                    <td>{{ d.get_deduction_type_display }}</td>
+                    <td>{{ d.display_amount }}</td>
+                    <td class="text-center">
+                        {% if d.is_active %}
+                            <span class="badge badge-success">Active</span>
+                        {% else %}
+                            <span class="badge badge-secondary">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-warning btn-edit-ded"
+                                data-id="{{ d.pk }}"
+                                data-name="{{ d.name }}"
+                                data-type="{{ d.deduction_type }}"
+                                data-amount="{{ d.amount }}"
+                                data-active="{{ d.is_active|yesno:'true,false' }}"
+                                data-url="{% url 'core:deduction_update' d.pk %}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger btn-del-ded"
+                                data-id="{{ d.pk }}"
+                                data-name="{{ d.name }}"
+                                data-url="{% url 'core:deduction_delete' d.pk %}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr id="empty-row">
+                    <td colspan="5" class="text-center text-muted py-4">No deductions configured yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add / Edit Deduction Modal -->
+<div class="modal fade" id="deductionModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="deductionModalTitle">Add Deduction</h5>
+                <button class="close text-white" type="button" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="ded-errors" class="alert alert-danger d-none"></div>
+                <div class="form-group">
+                    <label>Name <span class="text-danger">*</span></label>
+                    {{ deduction_form.name }}
+                </div>
+                <div class="form-group">
+                    <label>Type <span class="text-danger">*</span></label>
+                    {{ deduction_form.deduction_type }}
+                    <small class="form-text text-muted">Percentage: deducted as % of gross pay. Fixed: flat dollar amount per period.</small>
+                </div>
+                <div class="form-group">
+                    <label>Amount <span class="text-danger">*</span></label>
+                    {{ deduction_form.amount }}
+                </div>
+                <div class="custom-control custom-checkbox mt-1">
+                    {{ deduction_form.is_active }}
+                    <label class="custom-control-label" for="{{ deduction_form.is_active.id_for_label }}">Active</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" id="saveDeduction">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Deduction Modal -->
+<div class="modal fade" id="delDedModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-exclamation-triangle mr-2"></i>Delete Deduction</h5>
+                <button class="close text-white" type="button" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div id="del-ded-error" class="alert alert-danger d-none"></div>
+                Delete <strong id="delDedName"></strong>? This cannot be undone. Deductions with active exemptions cannot be deleted.
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
+                <button class="btn btn-danger" id="confirmDelDed">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+let editUrl = null;
+
+// ── Add ────────────────────────────────────────────────────────────────────
+document.getElementById('btnAddDeduction').addEventListener('click', function () {
+    editUrl = null;
+    document.getElementById('deductionModalTitle').textContent = 'Add Deduction';
+    document.getElementById('id_name').value = '';
+    document.getElementById('id_deduction_type').value = 'percentage';
+    document.getElementById('id_amount').value = '';
+    document.getElementById('id_is_active').checked = true;
+    document.getElementById('ded-errors').classList.add('d-none');
+    $('#deductionModal').modal('show');
+});
+
+// ── Edit ───────────────────────────────────────────────────────────────────
+document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.btn-edit-ded');
+    if (!btn) return;
+    editUrl = btn.dataset.url;
+    document.getElementById('deductionModalTitle').textContent = 'Edit Deduction';
+    document.getElementById('id_name').value = btn.dataset.name;
+    document.getElementById('id_deduction_type').value = btn.dataset.type;
+    document.getElementById('id_amount').value = btn.dataset.amount;
+    document.getElementById('id_is_active').checked = (btn.dataset.active === 'true');
+    document.getElementById('ded-errors').classList.add('d-none');
+    $('#deductionModal').modal('show');
+});
+
+// ── Save (create / update) ─────────────────────────────────────────────────
+document.getElementById('saveDeduction').addEventListener('click', function () {
+    const errBox = document.getElementById('ded-errors');
+    errBox.classList.add('d-none');
+    const fd = new FormData();
+    fd.append('csrfmiddlewaretoken', CSRF);
+    fd.append('name',           document.getElementById('id_name').value);
+    fd.append('deduction_type', document.getElementById('id_deduction_type').value);
+    fd.append('amount',         document.getElementById('id_amount').value);
+    if (document.getElementById('id_is_active').checked) fd.append('is_active', 'on');
+    const url = editUrl || "{% url 'core:deduction_create' %}";
+    fetch(url, { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) { location.reload(); }
+            else {
+                errBox.textContent = Object.values(data.errors).flat().join(' ');
+                errBox.classList.remove('d-none');
+            }
+        });
+});
+
+// ── Delete ─────────────────────────────────────────────────────────────────
+let delUrl = null, delId = null;
+document.addEventListener('click', function (e) {
+    const btn = e.target.closest('.btn-del-ded');
+    if (!btn) return;
+    delUrl = btn.dataset.url;
+    delId  = btn.dataset.id;
+    document.getElementById('delDedName').textContent = btn.dataset.name;
+    document.getElementById('del-ded-error').classList.add('d-none');
+    $('#delDedModal').modal('show');
+});
+
+document.getElementById('confirmDelDed').addEventListener('click', function () {
+    fetch(delUrl, { method: 'POST', headers: { 'X-CSRFToken': CSRF } })
+        .then(r => r.json())
+        .then(data => {
+            if (data.ok) {
+                document.getElementById(`ded-row-${delId}`).remove();
+                $('#delDedModal').modal('hide');
+            } else {
+                const e = document.getElementById('del-ded-error');
+                e.textContent = data.error;
+                e.classList.remove('d-none');
+            }
+        });
+});
+</script>
+{% endblock %}

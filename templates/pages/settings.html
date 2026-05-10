@@ -48,11 +48,24 @@
                         </label>
                         {{ form.overtime_threshold_hours }}
                     </div>
-                    <div class="alert alert-info mb-0 small">
-                        <i class="fas fa-info-circle mr-1"></i>
-                        Deductions are managed individually under <strong>Admin → Deductions</strong>.
-                        Each employee's exemptions are configured on their employee record.
-                    </div>
+                </div>
+            </div>
+
+            <!-- Deductions -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-minus-circle mr-2"></i>Deductions
+                    </h6>
+                    <a href="{% url 'core:deductions' %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-cog fa-sm mr-1"></i> Manage Deductions
+                    </a>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-0">
+                        Configure payroll deductions (NIS, Health Surcharge, etc.) and set per-employee exemptions on each employee's profile.
+                        Currently <strong>{{ deduction_count }}</strong> deduction{{ deduction_count|pluralize }} configured.
+                    </p>
                 </div>
             </div>
 

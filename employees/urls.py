@@ -20,4 +20,8 @@ urlpatterns = [
     path("groups/add/", views.GroupCreateView.as_view(), name="group_create"),
     path("groups/<int:pk>/edit/", views.GroupUpdateView.as_view(), name="group_update"),
     path("groups/<int:pk>/delete/", views.GroupDeleteView.as_view(), name="group_delete"),
+
+    # Deduction Exemptions (AJAX)
+    path("<int:employee_pk>/exemptions/add/", views.ExemptionCreateView.as_view(), name="exemption_create"),
+    path("exemptions/<int:pk>/delete/", views.ExemptionDeleteView.as_view(), name="exemption_delete"),
 ]

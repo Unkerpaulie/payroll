@@ -3,7 +3,7 @@ Forms for the core app.
 """
 
 from django import forms
-from .models import GlobalSettings
+from .models import Deduction, GlobalSettings
 
 _INPUT  = "form-control"
 _SELECT = "form-select form-control"
@@ -37,4 +37,19 @@ class GlobalSettingsForm(forms.ModelForm):
             "payroll_close_week":           forms.Select(attrs={"class": _SELECT}),
             "schedule_cycle_start":         forms.DateInput(attrs={"class": _INPUT, "type": "date"}),
             "payroll_cycle_offset_days":    forms.NumberInput(attrs={"class": _INPUT, "min": "0"}),
+        }
+
+
+class DeductionForm(forms.ModelForm):
+    class Meta:
+        model = Deduction
+        fields = ["name", "deduction_type", "amount", "is_active"]
+        widgets = {
+            "name":           forms.TextInput(attrs={"class": _INPUT, "placeholder": "e.g. NIS, Health Surcharge"}),
+            "deduction_type": forms.Select(attrs={"class": _SELECT}),
+            "amount":         forms.NumberInput(attrs={"class": _INPUT, "step": "0.01", "min": "0"}),
+            "is_active":      forms.CheckboxInput(attrs={"class": "custom-control-input"}),
+        }
+        labels = {
+            "amount": "Amount (% or $)",
         }

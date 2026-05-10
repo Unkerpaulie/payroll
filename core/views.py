@@ -5,10 +5,10 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.urls import reverse_lazy
-from django.views.generic import TemplateView, UpdateView, View
+from django.views.generic import ListView, TemplateView, UpdateView, View
 
-from core.models import GlobalSettings
-from core.forms import GlobalSettingsForm
+from core.models import Deduction, GlobalSettings
+from core.forms import DeductionForm, GlobalSettingsForm
 from scheduling.models import PayrollCycle, ScheduledShift
 from attendance.models import ActualShift
 from scheduling.forms import AdHocShiftForm
@@ -207,6 +207,70 @@ class SettingsView(LoginRequiredMixin, UpdateView):
     def get_object(self, queryset=None):
         return GlobalSettings.get()
 
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["deduction_count"] = Deduction.objects.count()
+        return ctx
+
     def form_valid(self, form):
         messages.success(self.request, "Settings saved successfully.")
         return super().form_valid(form)
+
+
+# ---------------------------------------------------------------------------
+# Deduction CRUD (AJAX-backed, same pattern as employee Groups)
+# ---------------------------------------------------------------------------
+
+class DeductionListView(LoginRequiredMixin, ListView):
+    model = Deduction
+    template_name = "pages/deductions.html"
+    context_object_name = "deductions"
+    ordering = ["name"]
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["deduction_form"] = DeductionForm()
+        return ctx
+
+
+class DeductionCreateView(LoginRequiredMixin, View):
+    def post(self, request):
+        form = DeductionForm(request.POST)
+        if form.is_valid():
+            d = form.save()
+            return JsonResponse({
+                "ok": True, "id": d.pk, "name": d.name,
+                "deduction_type": d.deduction_type,
+                "display_amount": d.display_amount, "is_active": d.is_active,
+            })
+        return JsonResponse({"ok": False, "errors": form.errors}, status=400)
+
+
+class DeductionUpdateView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        from django.shortcuts import get_object_or_404
+        deduction = get_object_or_404(Deduction, pk=pk)
+        form = DeductionForm(request.POST, instance=deduction)
+        if form.is_valid():
+            d = form.save()
+            return JsonResponse({
+                "ok": True, "id": d.pk, "name": d.name,
+                "deduction_type": d.deduction_type,
+                "display_amount": d.display_amount, "is_active": d.is_active,
+            })
+        return JsonResponse({"ok": False, "errors": form.errors}, status=400)
+
+
+class DeductionDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        from django.shortcuts import get_object_or_404
+        from django.db.models import ProtectedError
+        deduction = get_object_or_404(Deduction, pk=pk)
+        try:
+            deduction.delete()
+            return JsonResponse({"ok": True})
+        except ProtectedError:
+            return JsonResponse(
+                {"ok": False, "error": "This deduction has exemption records and cannot be deleted."},
+                status=400,
+            )

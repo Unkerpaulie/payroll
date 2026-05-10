@@ -1,10 +1,9 @@
 """
 Scheduling forms.
 
-AdHocShiftForm — creates an unscheduled (ad-hoc) shift for any active employee
-                 within the current open PayrollCycle. Used when a replacement
-                 worker needs to be added on the fly or a missed shift must be
-                 covered on the same day.
+CycleCreateForm  — opens a new bi-weekly PayrollCycle.
+ShiftForm        — adds a scheduled shift in the builder (AJAX-backed).
+AdHocShiftForm   — creates an unscheduled (ad-hoc) shift on the fly.
 """
 
 import datetime
@@ -12,8 +11,72 @@ import datetime
 from django import forms
 from django.core.exceptions import ValidationError
 
-from employees.models import Employee
-from .models import Day, PayrollCycle, ScheduledShift, Week
+from employees.models import Employee, Group
+from .models import Day, PayrollCycle, Schedule, ScheduledShift, Week
+
+
+_INPUT  = "form-control"
+_SELECT = "form-control"
+
+
+# ── New cycle ─────────────────────────────────────────────────────────────────
+
+class CycleCreateForm(forms.Form):
+    schedule_start = forms.DateField(
+        label="Schedule Start Date",
+        help_text="First day of the 14-day schedule window (should be the configured week-start day).",
+        widget=forms.DateInput(attrs={"class": _INPUT, "type": "date"}),
+    )
+    pay_date = forms.DateField(
+        label="Pay Date",
+        help_text="Date employees receive their paycheques for this cycle.",
+        widget=forms.DateInput(attrs={"class": _INPUT, "type": "date"}),
+    )
+
+    def clean_schedule_start(self):
+        date = self.cleaned_data["schedule_start"]
+        if PayrollCycle.objects.filter(status=PayrollCycle.Status.OPEN).exists():
+            raise ValidationError(
+                "There is already an open payroll cycle. Close it before starting a new one."
+            )
+        return date
+
+
+# ── Builder shift form ────────────────────────────────────────────────────────
+
+class ShiftForm(forms.Form):
+    """Used by the schedule builder AJAX endpoint to create a single shift."""
+
+    employee = forms.ModelChoiceField(
+        queryset=Employee.objects.none(),   # set in view
+        widget=forms.Select(attrs={"class": _SELECT}),
+    )
+    start_time = forms.TimeField(
+        widget=forms.TimeInput(attrs={"class": _INPUT, "type": "time"}),
+    )
+    end_time = forms.TimeField(
+        widget=forms.TimeInput(attrs={"class": _INPUT, "type": "time"}),
+    )
+    include_lunch = forms.BooleanField(
+        required=False,
+        label="Include Lunch Break",
+        widget=forms.CheckboxInput(attrs={"class": "custom-control-input"}),
+    )
+
+    def __init__(self, *args, group=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if group:
+            self.fields["employee"].queryset = (
+                Employee.objects.filter(group=group, status=Employee.Status.ACTIVE)
+                .order_by("last_name", "first_name")
+            )
+
+    def clean(self):
+        cleaned = super().clean()
+        s, e = cleaned.get("start_time"), cleaned.get("end_time")
+        if s and e and e <= s:
+            raise ValidationError("End time must be after start time.")
+        return cleaned
 
 
 class AdHocShiftForm(forms.Form):

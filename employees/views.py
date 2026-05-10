@@ -12,7 +12,8 @@ from django.views.generic import (
     ListView, CreateView, DetailView, UpdateView, DeleteView, View,
 )
 
-from .models import Employee, Group, Unavailability
+from core.models import Deduction
+from .models import DeductionExemption, Employee, Group, Unavailability
 from .forms import EmployeeForm, GroupForm, UnavailabilityForm
 
 
@@ -48,11 +49,16 @@ class EmployeeDetailView(LoginRequiredMixin, DetailView):
     context_object_name = "employee"
 
     def get_queryset(self):
-        return Employee.objects.select_related("group").prefetch_related("unavailabilities")
+        return Employee.objects.select_related("group").prefetch_related(
+            "unavailabilities", "deduction_exemptions__deduction"
+        )
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["unavailability_form"] = UnavailabilityForm()
+        # Deductions the employee is NOT yet exempt from (available to add)
+        exempt_ids = self.object.deduction_exemptions.values_list("deduction_id", flat=True)
+        ctx["available_deductions"] = Deduction.objects.filter(is_active=True).exclude(pk__in=exempt_ids)
         return ctx
 
 
@@ -153,3 +159,39 @@ class GroupDeleteView(LoginRequiredMixin, View):
             return JsonResponse({"ok": True})
         except ProtectedError:
             return JsonResponse({"ok": False, "error": "This group has employees assigned and cannot be deleted."}, status=400)
+
+
+# ── Deduction Exemptions (AJAX) ───────────────────────────────────────────────
+
+class ExemptionCreateView(LoginRequiredMixin, View):
+    def post(self, request, employee_pk):
+        employee = get_object_or_404(Employee, pk=employee_pk)
+        deduction_id = request.POST.get("deduction_id")
+        deduction = get_object_or_404(Deduction, pk=deduction_id, is_active=True)
+        exemption, created = DeductionExemption.objects.get_or_create(
+            employee=employee, deduction=deduction
+        )
+        if not created:
+            return JsonResponse({"ok": False, "error": "Exemption already exists."}, status=400)
+        return JsonResponse({
+            "ok": True,
+            "id": exemption.pk,
+            "deduction_id": deduction.pk,
+            "deduction_name": deduction.name,
+            "display_amount": deduction.display_amount,
+        })
+
+
+class ExemptionDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        exemption = get_object_or_404(DeductionExemption, pk=pk)
+        deduction_id = exemption.deduction_id
+        deduction_name = exemption.deduction.name
+        display_amount = exemption.deduction.display_amount
+        exemption.delete()
+        return JsonResponse({
+            "ok": True,
+            "deduction_id": deduction_id,
+            "deduction_name": deduction_name,
+            "display_amount": display_amount,
+        })
