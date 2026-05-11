@@ -66,7 +66,7 @@
                     <td class="align-middle font-weight-bold small">{{ row.employee.full_name }}</td>
                     {% for cell in row.days %}
                     <td class="text-center align-middle p-1"
-                        style="background: {% if cell.shift %}#eaf4fb{% endif %}">
+                        style="background: {% if cell.shift %}#eaf4fb{% elif cell.is_unavailable %}#fdf2f2{% endif %}">
                         {% if cell.shift %}
                         <div class="shift-card" id="shift-card-{{ cell.shift.pk }}">
                             <div class="small font-weight-bold text-primary shift-time">
@@ -99,6 +99,11 @@
                                 </button>
                             </div>
                         </div>
+                        {% elif cell.is_unavailable %}
+                        <span class="text-danger" title="{{ row.employee.full_name }} is marked unavailable on this date.">
+                            <i class="fas fa-ban fa-sm"></i>
+                            <br><small class="text-muted">Unavailable</small>
+                        </span>
                         {% else %}
                         <button class="btn btn-link btn-sm text-primary p-0 btn-add-shift"
                                 data-employee-id="{{ row.employee.pk }}"

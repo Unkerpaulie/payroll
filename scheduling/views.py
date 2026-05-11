@@ -10,7 +10,7 @@ from django.views.generic import DetailView, ListView, View
 from django.views.generic.edit import FormView
 
 from core.models import GlobalSettings
-from employees.models import Employee, Group
+from employees.models import Employee, Group, Unavailability
 from .forms import AdHocShiftForm, CycleCreateForm, ShiftForm
 from .models import Day, PayrollCycle, Schedule, ScheduledShift, Week
 
@@ -204,6 +204,19 @@ class ScheduleBuilderView(LoginRequiredMixin, View):
             .order_by("last_name", "first_name")
         )
 
+        # Build a set of (employee_id, date) pairs unavailable within this week.
+        unavail_records = Unavailability.objects.filter(
+            employee__group=schedule.group,
+            start_date__lte=dates[-1],
+            end_date__gte=dates[0],
+        ).values_list("employee_id", "start_date", "end_date")
+
+        unavailable_set = set()
+        for emp_id, u_start, u_end in unavail_records:
+            for d in dates:
+                if u_start <= d <= u_end:
+                    unavailable_set.add((emp_id, d))
+
         employee_rows = []
         for emp in employees:
             weekly_hours = Decimal("0")
@@ -212,7 +225,12 @@ class ScheduleBuilderView(LoginRequiredMixin, View):
                 shift = shift_map.get((emp.pk, date))
                 if shift:
                     weekly_hours += shift.gross_hours(lunch_min)
-                day_cells.append({"date": date, "day_obj": days_by_date.get(date), "shift": shift})
+                day_cells.append({
+                    "date": date,
+                    "day_obj": days_by_date.get(date),
+                    "shift": shift,
+                    "is_unavailable": not shift and (emp.pk, date) in unavailable_set,
+                })
             employee_rows.append({"employee": emp, "total_hours": weekly_hours, "days": day_cells})
 
         return render(request, self.template_name, {
@@ -238,7 +256,7 @@ class ShiftCreateView(LoginRequiredMixin, View):
         except (ValueError, TypeError):
             return JsonResponse({"ok": False, "error": "Invalid date."}, status=400)
 
-        form = ShiftForm(request.POST, group=week.schedule.group)
+        form = ShiftForm(request.POST, group=week.schedule.group, date=date)
         if not form.is_valid():
             return JsonResponse({"ok": False, "errors": form.errors}, status=400)
 

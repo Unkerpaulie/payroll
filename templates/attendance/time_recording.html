@@ -70,6 +70,7 @@
             {% for row in rows %}
             <tr id="row-{{ row.shift.pk }}"
                 data-shift-id="{{ row.shift.pk }}"
+                data-employee-name="{{ row.shift.employee.full_name }}"
                 data-include-lunch="{{ row.shift.include_lunch|yesno:'true,false' }}"
                 data-state="{{ row.state }}"
                 data-clock-in="{% if row.actual and row.actual.clock_in %}{{ row.actual.clock_in|time:'H:i' }}{% endif %}"
@@ -244,6 +245,35 @@
     </div>
 </div>
 
+<!-- Clock Action Confirmation Modal -->
+<div class="modal fade" id="clockConfirmModal" tabindex="-1" role="dialog"
+     aria-labelledby="clockConfirmLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header" id="clockConfirmHeader">
+                <h5 class="modal-title" id="clockConfirmLabel">
+                    <i class="fas mr-2" id="clockConfirmIcon"></i>
+                    <span id="clockConfirmTitle"></span>
+                </h5>
+                <button class="close" type="button" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <p class="mb-3" id="clockConfirmMsg" style="font-size:1.05rem;"></p>
+                <p class="display-4 font-weight-bold mb-0" id="clockConfirmTime"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i>Cancel
+                </button>
+                <button type="button" class="btn" id="clockConfirmBtn">
+                    <i class="fas mr-1" id="clockConfirmBtnIcon"></i>
+                    <span id="clockConfirmBtnLabel"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -332,9 +362,58 @@
         return s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
     }
 
-    // ── Clock button click handler ─────────────────────────────────────────────
+    // ── Action metadata (label, verb, icon, Bootstrap colour) ────────────────
+    const ACTION_META = {
+        clock_in:    { label: 'Clock In',    verb: 'clock in',          icon: 'fa-sign-in-alt',  cls: 'primary' },
+        lunch_start: { label: 'Start Lunch', verb: 'start their lunch', icon: 'fa-utensils',     cls: 'warning' },
+        lunch_end:   { label: 'End Lunch',   verb: 'end their lunch',   icon: 'fa-undo',         cls: 'info'    },
+        clock_out:   { label: 'Clock Out',   verb: 'clock out',         icon: 'fa-sign-out-alt', cls: 'danger'  },
+    };
+
+    // Pending click state — captured when the modal opens, consumed on confirm.
+    let pendingBtn = null;
+
+    // ── Clock button click → open confirmation modal ──────────────────────────
     document.addEventListener('click', function (e) {
-        const btn = e.target.closest('.clock-btn');
+        const clickedBtn = e.target.closest('.clock-btn');
+        if (!clickedBtn) return;
+
+        const action = clickedBtn.dataset.action;
+        const meta   = ACTION_META[action];
+        if (!meta) return;
+
+        const row  = clickedBtn.closest('tr');
+        const name = row ? row.dataset.employeeName : '?';
+
+        // Format current time as "9:05 AM"
+        const now     = new Date();
+        const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+        // Populate modal
+        const header = document.getElementById('clockConfirmHeader');
+        header.className = `modal-header bg-${meta.cls} ${meta.cls === 'warning' ? 'text-dark' : 'text-white'}`;
+
+        document.getElementById('clockConfirmIcon').className  = `fas ${meta.icon} mr-2`;
+        document.getElementById('clockConfirmTitle').textContent = meta.label;
+        document.getElementById('clockConfirmMsg').innerHTML =
+            `<strong>${name}</strong> — ${meta.verb}?`;
+        document.getElementById('clockConfirmTime').textContent = `Current time: ${timeStr}`;
+
+        const confirmBtn = document.getElementById('clockConfirmBtn');
+        confirmBtn.className = `btn btn-${meta.cls}`;
+        document.getElementById('clockConfirmBtnIcon').className = `fas ${meta.icon} mr-1`;
+        document.getElementById('clockConfirmBtnLabel').textContent = meta.label;
+
+        pendingBtn = clickedBtn;
+        $('#clockConfirmModal').modal('show');
+    });
+
+    // ── Confirm button → fire AJAX ────────────────────────────────────────────
+    document.getElementById('clockConfirmBtn').addEventListener('click', function () {
+        $('#clockConfirmModal').modal('hide');
+
+        const btn  = pendingBtn;
+        pendingBtn = null;
         if (!btn) return;
 
         btn.disabled = true;
@@ -363,6 +442,11 @@
                 btn.disabled = false;
                 btn.innerHTML = orig;
             });
+    });
+
+    // Clear pending state if the modal is dismissed via Cancel or the ✕ button.
+    document.getElementById('clockConfirmModal').addEventListener('hidden.bs.modal', function () {
+        pendingBtn = null;
     });
 
     // ── Ad-hoc shift form (AJAX, reload on success) ───────────────────────────

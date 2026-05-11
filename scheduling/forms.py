@@ -11,7 +11,7 @@ import datetime
 from django import forms
 from django.core.exceptions import ValidationError
 
-from employees.models import Employee, Group
+from employees.models import Employee, Group, Unavailability, Unavailability
 from .models import Day, PayrollCycle, Schedule, ScheduledShift, Week
 
 
@@ -72,7 +72,7 @@ class ShiftForm(forms.Form):
     """Used by the schedule builder AJAX endpoint to create a single shift."""
 
     employee = forms.ModelChoiceField(
-        queryset=Employee.objects.none(),   # set in view
+        queryset=Employee.objects.none(),   # populated in __init__
         widget=forms.Select(attrs={"class": _SELECT}),
     )
     start_time = forms.TimeField(
@@ -87,13 +87,17 @@ class ShiftForm(forms.Form):
         widget=forms.CheckboxInput(attrs={"class": "custom-control-input"}),
     )
 
-    def __init__(self, *args, group=None, **kwargs):
+    def __init__(self, *args, group=None, date=None, **kwargs):
         super().__init__(*args, **kwargs)
         if group:
-            self.fields["employee"].queryset = (
-                Employee.objects.filter(group=group, status=Employee.Status.ACTIVE)
-                .order_by("last_name", "first_name")
-            )
+            qs = Employee.objects.filter(group=group, status=Employee.Status.ACTIVE)
+            if date:
+                unavailable = Unavailability.objects.filter(
+                    start_date__lte=date,
+                    end_date__gte=date,
+                ).values_list("employee_id", flat=True)
+                qs = qs.exclude(pk__in=unavailable)
+            self.fields["employee"].queryset = qs.order_by("last_name", "first_name")
 
     def clean(self):
         cleaned = super().clean()
@@ -113,17 +117,43 @@ class AdHocShiftForm(forms.Form):
       - There is an open cycle.
       - Today falls within that cycle's schedule window.
       - The employee is not already scheduled today.
+      - The employee has no Unavailability record covering today.
       - end_time is after start_time.
+
+    The employee dropdown is pre-filtered at form instantiation time to show
+    only employees who are active, not already scheduled today, and not marked
+    unavailable today — so invalid choices never appear in the list.
     """
 
     employee = forms.ModelChoiceField(
-        queryset=Employee.objects.filter(status=Employee.Status.ACTIVE).order_by(
-            "last_name", "first_name"
-        ),
+        queryset=Employee.objects.none(),   # populated in __init__
         label="Employee",
         widget=forms.Select(attrs={"class": "form-control"}),
     )
     # No 'date' field — always today; set in clean() and unavailable to the user.
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        today = datetime.date.today()
+
+        # Employees already on the schedule for today (any shift, any group).
+        already_scheduled = ScheduledShift.objects.filter(
+            day__date=today
+        ).values_list("employee_id", flat=True)
+
+        # Employees whose unavailability window covers today.
+        unavailable = Unavailability.objects.filter(
+            start_date__lte=today,
+            end_date__gte=today,
+        ).values_list("employee_id", flat=True)
+
+        self.fields["employee"].queryset = (
+            Employee.objects
+            .filter(status=Employee.Status.ACTIVE)
+            .exclude(pk__in=already_scheduled)
+            .exclude(pk__in=unavailable)
+            .order_by("last_name", "first_name")
+        )
     start_time = forms.TimeField(
         label="Start Time",
         widget=forms.TimeInput(attrs={"class": "form-control", "type": "time"}),
